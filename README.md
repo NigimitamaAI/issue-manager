@@ -145,6 +145,8 @@ issue_manager フォルダごとコピーして、それぞれ別ポートで起
 | `aiName` | （空） | 複数 AI 運用時の AI 識別子 |
 | `projectName` | （空） | 画面上の表示名の上書き |
 
+root には専用の作業フォルダを指定してください。ドライブ直下、OS / Program Files、ユーザープロファイル全体、Desktop / Documents / Downloads 全体のような広すぎる場所は、root 追加 API で拒否されます。同期フォルダ配下は警告対象です。
+
 ### CLI 引数
 
 ```bash

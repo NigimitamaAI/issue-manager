@@ -585,6 +585,23 @@ body {
   color: var(--muted);
   font-size: 10px;
 }
+.root-safety {
+  margin-top: 6px;
+  padding: 5px 7px;
+  border-radius: 5px;
+  font-size: 11px;
+  line-height: 1.45;
+}
+.root-safety.warning {
+  color: #ffe5a3;
+  border: 1px solid rgba(200,154,24,0.45);
+  background: rgba(200,154,24,0.12);
+}
+.root-safety.blocked {
+  color: #ffb8b8;
+  border: 1px solid rgba(200,52,48,0.5);
+  background: rgba(200,52,48,0.12);
+}
 
 /* 詳細ビューに表示するツールバーの調整 (#detail-move と #detail-body の間に配置) */
 .ticket-toolbar.detail-toolbar {

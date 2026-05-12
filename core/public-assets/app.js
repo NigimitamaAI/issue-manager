@@ -330,7 +330,10 @@ async function rootManagerDialog() {
       },
         el('div', { class: 'root-manager-head', text: (r.label || r.id) + ' (' + r.id + ')' }),
         el('code', { text: r.path }),
-        el('div', { class: 'root-manager-meta', text: 'type: ' + (r.type || 'local') })
+        el('div', { class: 'root-manager-meta', text: 'type: ' + (r.type || 'local') }),
+        r.safety && r.safety.level !== 'ok'
+          ? el('div', { class: 'root-safety ' + r.safety.level, text: r.safety.message || r.safety.code })
+          : null
       ))
     }
   }
