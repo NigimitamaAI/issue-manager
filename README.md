@@ -140,7 +140,7 @@ issue_manager フォルダごとコピーして、それぞれ別ポートで起
 | `root` | issue_manager の親 | 単一 root 用の互換設定 |
 | `roots` | `[]` | 複数 storage root。`G:/codex` と `D:/dev/test` のような独立絶対パスを指定 |
 | `nodeExe` | `node` | 起動スクリプトが使う node.exe のパス |
-| `bomFixerPath` | （空） | Windows の BOM 除去ツールのパス |
+| `bomFixerPath` | （空） | `_tools/Filetool.bat` または Windows の BOM 除去ツールのパス |
 | `logDir` | `logs` | ログ出力先 |
 | `aiName` | （空） | 複数 AI 運用時の AI 識別子 |
 | `projectName` | （空） | 画面上の表示名の上書き |

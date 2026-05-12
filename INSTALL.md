@@ -66,7 +66,7 @@ chmod +x start.sh
   "port": 5180,
   "root": "G:/claudedir",
   "nodeExe": "node",
-  "bomFixerPath": "G:/claudedir/_tools/BOM修復所_v1.bat",
+  "bomFixerPath": "G:/claudedir/issue_manager/_tools/Filetool.bat",
   "projectName": ""
 }
 ```
@@ -76,7 +76,7 @@ chmod +x start.sh
 | `port` | 任意 | `5180` | サーバーポート。複数インスタンス時は別ポートに |
 | `root` | 任意 | issue_manager の親ディレクトリ | プロジェクト検出のルート。空または未指定なら親ディレクトリを使用 |
 | `nodeExe` | 任意 | `node` | start.bat が使う node 実行ファイル。PATH 上にあれば `node` のままで OK |
-| `bomFixerPath` | 任意 | `""` | Windows .bat の BOM 除去ツールパス（任意） |
+| `bomFixerPath` | 任意 | `""` | `Filetool.bat` または Windows .bat の BOM 除去ツールパス（任意） |
 | `projectName` | 任意 | `""` | issue_manager 自身を画面表示する時の名前 |
 
 **Windows のパスは `/` 区切りで書けます**（例: `G:/claudedir`）。
@@ -176,7 +176,7 @@ issue-manager serve
 'm' は、内部コマンドまたは外部コマンド...
 ```
 
-UTF-8 BOM が付与されています。Claude が生成した .bat は BOM 修復所などのツールで BOM を除去してください。
+UTF-8 BOM が付与されています。Claude が生成した .bat は `_tools/Filetool.bat` などのツールで BOM を除去してください。
 PowerShell で修復する場合:
 
 ```powershell

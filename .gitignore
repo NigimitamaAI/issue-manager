@@ -34,6 +34,7 @@ _tmp_*/
 *.bak
 *.log
 logs/
+_tools/logs/
 core/bk_server.mjs
 installbk.ps1
 
