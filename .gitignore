@@ -22,7 +22,7 @@ _self/tickets/.trash/
 **/.issuemgr/ai-*.json
 
 # Private repository / private notes
-_private/*
+_private/
 
 # Local operation artifacts
 _new_files/
