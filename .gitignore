@@ -23,8 +23,6 @@ _self/tickets/.trash/
 
 # Private repository / private notes
 _private/*
-!_private/README.md
-!_private/.gitkeep
 
 # Local operation artifacts
 _new_files/
