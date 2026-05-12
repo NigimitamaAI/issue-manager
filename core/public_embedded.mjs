@@ -19,8 +19,15 @@ function readAsset(name) {
   return readFileSync(join(ASSET_DIR, name), 'utf8');
 }
 
+function readBinaryAsset(name) {
+  return readFileSync(join(ASSET_DIR, name));
+}
+
 export const PUBLIC_FILES = {
   'index.html': readAsset('index.html'),
   'style.css': readAsset('style.css'),
   'app.js': readAsset('app.js'),
+  'favicon-32.png': readBinaryAsset('favicon-32.png'),
+  'apple-touch-icon.png': readBinaryAsset('apple-touch-icon.png'),
+  'app-logo.png': readBinaryAsset('app-logo.png'),
 };

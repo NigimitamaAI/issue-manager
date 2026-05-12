@@ -149,6 +149,14 @@ const state = {
   activeRootId: null,
 }
 
+const THEME_STORAGE_KEY = 'issue_manager.theme'
+const THEMES = [
+  { id: 'sumi', label: 'Sumi' },
+  { id: 'washi', label: 'Washi' },
+  { id: 'mizu', label: 'Mizu' },
+  { id: 'matcha', label: 'Matcha' },
+]
+
 function $(sel) { return document.querySelector(sel) }
 function el(tag, attrs, ...children) {
   const node = document.createElement(tag)
@@ -162,6 +170,29 @@ function el(tag, attrs, ...children) {
   }
   for (const c of children) if (c) node.appendChild(typeof c === 'string' ? document.createTextNode(c) : c)
   return node
+}
+
+function normalizeThemeId(themeId) {
+  return THEMES.some(t => t.id === themeId) ? themeId : THEMES[0].id
+}
+
+function applyTheme(themeId) {
+  const normalized = normalizeThemeId(themeId)
+  document.documentElement.dataset.theme = normalized
+  localStorage.setItem(THEME_STORAGE_KEY, normalized)
+  const select = $('#theme-select')
+  if (select && select.value !== normalized) select.value = normalized
+}
+
+function setupThemeSelector() {
+  const select = $('#theme-select')
+  if (!select) return
+  select.innerHTML = ''
+  for (const theme of THEMES) {
+    select.appendChild(el('option', { value: theme.id, text: theme.label }))
+  }
+  applyTheme(localStorage.getItem(THEME_STORAGE_KEY) || THEMES[0].id)
+  select.onchange = () => applyTheme(select.value)
 }
 
 let toastTimer = null
@@ -229,6 +260,7 @@ function modal({ title, body, actions }) {
 }
 
 async function init() {
+  setupThemeSelector()
   try {
     const ping = await api.ping()
     api.token = ping.apiToken || ''

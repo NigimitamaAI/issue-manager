@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Issue Manager</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="stylesheet" href="/style.css">
 <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js" defer></script>
 <script src="/app.js" type="module" defer></script>
@@ -11,8 +13,12 @@
 <body>
 <div id="app">
   <header id="header">
-    <div class="hdr-title">Issue Manager <small id="hdr-version"></small></div>
+    <div class="hdr-brand" aria-label="Issue Manager">
+      <img class="hdr-app-icon" src="/app-logo.png" alt="Wakon app logo">
+      <div class="hdr-title">Issue Manager <small id="hdr-version"></small></div>
+    </div>
     <div class="hdr-sep"></div>
+    <select id="theme-select" class="hdr-select" title="Theme"></select>
     <span id="hdr-root" class="hdr-root" title="ルートディレクトリ"></span>
     <button id="btn-reload" class="hdr-btn" title="プロジェクト一覧を再読み込み">↻ 更新</button>
     <button id="btn-root-manager" class="hdr-btn">ルート管理</button>
