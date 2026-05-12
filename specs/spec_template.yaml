@@ -1,0 +1,16 @@
+feature:
+	name:
+	description
+
+requirements:
+	要件NAME-1:要件1※要件単位でテストを行う
+	要件NAME-1-1:要件1-1
+
+constraints:
+	- 
+	- 
+	- 
+	
+out_of_scope
+	- 
+	- 

@@ -1,0 +1,56 @@
+# Environment / local settings
+config.json
+.env
+.env.local
+.env.*.local
+
+# Generated embedded frontend
+public/
+publicx/
+
+# issue_manager local work queues
+# done/ is kept as shared history. Other queues are local operating state.
+_self/tickets/inbox/
+_self/tickets/todo/
+_self/tickets/doing/
+_self/tickets/blocked/
+_self/tickets/archive/
+_self/tickets/.trash/
+
+# Generated ticket status files
+**/tickets/STATUS.md
+**/.issuemgr/ai-*.json
+
+# Private repository / private notes
+_private/*
+!_private/README.md
+!_private/.gitkeep
+
+# Local operation artifacts
+_new_files/
+_tmp_*/
+
+# Backups / logs
+*.bak
+*.log
+logs/
+core/bk_server.mjs
+installbk.ps1
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json

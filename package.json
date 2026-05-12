@@ -1,0 +1,20 @@
+{
+  "name": "issue_manager",
+  "version": "1.0.0",
+  "description": "ローカルチケット管理画面（claudedir配下のプロジェクトに横断的に対応）",
+  "type": "module",
+  "main": "core/server.mjs",
+  "bin": {
+    "issue-manager": "bin/issue-manager.mjs"
+  },
+  "scripts": {
+    "start": "node core/server.mjs",
+    "start:port": "node core/server.mjs --port 5180",
+    "cli": "node bin/issue-manager.mjs",
+    "check": "node --check core/server.mjs && node --check bin/issue-manager.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "private": true
+}

@@ -1,0 +1,22 @@
+issue_manager
+Copyright (c) 2026 Kazutora Harada / 和魂LOVE (Nigimitamalove)
+
+This product includes software developed by
+Kazutora Harada / 和魂LOVE (Nigimitamalove).
+
+This software is dual-licensed:
+
+  - core/ and root-level files (README.md, config.example.json,
+    start scripts, templates, etc.):
+      Apache License, Version 2.0 (see LICENSE-APACHE)
+
+  - enterprise/ directory:
+      Business Source License 1.1 (see LICENSE-BSL)
+      Change Date: 2030-04-30
+      Change License: Apache License, Version 2.0
+
+For details, see LICENSE.
+For commercial use of enterprise/, see COMMERCIAL_LICENSE.md.
+For privacy policy, see PRIVACY.md.
+
+Contact: nigimitamalove.info@gmail.com

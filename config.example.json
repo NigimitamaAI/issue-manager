@@ -1,0 +1,19 @@
+{
+  "_comment": "Copy this file to config.json and adjust it for your machine.",
+  "port": 5180,
+  "roots": [
+    {
+      "id": "default",
+      "label": "default",
+      "type": "local",
+      "path": "G:/codex",
+      "capabilities": ["read", "browse", "createProject", "importProject", "writeTickets", "writeMeta", "openExternal"],
+      "writeScopes": ["tickets", ".issuemgr"]
+    }
+  ],
+  "nodeExe": "node",
+  "bomFixerPath": "",
+  "logDir": "logs",
+  "aiName": "",
+  "projectName": ""
+}

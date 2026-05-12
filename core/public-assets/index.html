@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Issue Manager</title>
+<link rel="stylesheet" href="/style.css">
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js" defer></script>
+<script src="/app.js" type="module" defer></script>
+</head>
+<body>
+<div id="app">
+  <header id="header">
+    <div class="hdr-title">Issue Manager <small id="hdr-version"></small></div>
+    <div class="hdr-sep"></div>
+    <span id="hdr-root" class="hdr-root" title="ルートディレクトリ"></span>
+    <button id="btn-reload" class="hdr-btn" title="プロジェクト一覧を再読み込み">↻ 更新</button>
+    <button id="btn-root-manager" class="hdr-btn">ルート管理</button>
+    <button id="btn-new-project" class="hdr-btn">＋ プロジェクト追加</button>
+  </header>
+
+  <div id="main">
+    <aside id="sidebar">
+      <div class="side-title">プロジェクト</div>
+      <ul id="project-list"></ul>
+    </aside>
+
+    <section id="kanban-wrap">
+      <div id="kanban-header">
+        <h2 id="kanban-title">プロジェクトを選択してください</h2>
+        <div class="kanban-actions">
+          <button id="btn-next-action" class="hdr-btn primary" disabled>次の一手は？</button>
+          <button id="btn-resume-prompt" class="hdr-btn" disabled title="再開用プロンプトをクリップボードにコピー">📋 再開プロンプト</button>
+          <button id="btn-toggle-archive" class="hdr-btn" disabled>📦 archive を表示</button>
+          <button id="btn-project-info" class="hdr-btn" disabled>情報</button>
+          <button id="btn-unregister-project" class="hdr-btn warn" disabled>登録解除</button>
+          <button id="btn-export" class="hdr-btn" disabled>⬇ エクスポート</button>
+          <button id="btn-open-index" class="hdr-btn" disabled>INDEX.md を開く</button>
+          <button id="btn-open-rules" class="hdr-btn" disabled>RULES.md を開く</button>
+          <button id="btn-new-ticket" class="hdr-btn" disabled>＋ 新規チケット</button>
+          <button id="btn-migrate" class="hdr-btn warn" style="display:none">⚠ 新構造へ移行</button>
+        </div>
+      </div>
+      <div id="kanban"></div>
+    </section>
+
+    <section id="detail">
+      <div id="detail-empty">チケットを選択すると詳細が表示されます</div>
+      <div id="detail-content" style="display:none">
+        <div id="detail-header">
+          <div id="detail-path"></div>
+          <div class="detail-actions">
+            <button id="btn-detail-open">エディタで開く</button>
+            <button id="btn-detail-reload">↻</button>
+            <button id="btn-detail-resume">📋 このチケットで再開</button>
+            <button id="btn-detail-archive">📦 アーカイブ</button>
+            <button id="btn-detail-unarchive" style="display:none">← 元のレーンに戻す</button>
+            <button id="btn-detail-delete" class="danger">削除</button>
+          </div>
+        </div>
+        <div id="detail-move">
+          <span>移動:</span>
+          <button data-lane="inbox">inbox</button>
+          <button data-lane="todo">todo</button>
+          <button data-lane="doing">doing</button>
+          <button data-lane="blocked">blocked</button>
+          <button data-lane="done">done</button>
+        </div>
+        <div id="detail-toolbar" class="ticket-toolbar detail-toolbar"></div>
+        <article id="detail-body"></article>
+      </div>
+    </section>
+  </div>
+
+  <div id="toast"></div>
+
+  <div id="modal-bg" style="display:none">
+    <div id="modal">
+      <div id="modal-title"></div>
+      <div id="modal-body"></div>
+      <div id="modal-actions"></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
