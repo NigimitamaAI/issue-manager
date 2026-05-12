@@ -11,7 +11,14 @@
 <body>
 <div id="app">
   <header id="header">
-    <div class="hdr-title">Issue Manager <small id="hdr-version"></small></div>
+    <div class="hdr-brand" aria-label="Issue Manager">
+      <svg class="hdr-logo" viewBox="0 0 48 48" role="img" aria-label="和 logo">
+        <circle class="logo-enso" cx="24" cy="24" r="18"></circle>
+        <path class="logo-fold" d="M24 7 L39 33 L24 28 L9 33 Z"></path>
+        <path class="logo-brush" d="M16 20 C21 18 27 18 32 20 M24 14 L24 34 M17 29 C22 31 27 31 32 29"></path>
+      </svg>
+      <div class="hdr-title">Issue Manager <small id="hdr-version"></small></div>
+    </div>
     <div class="hdr-sep"></div>
     <span id="hdr-root" class="hdr-root" title="ルートディレクトリ"></span>
     <button id="btn-reload" class="hdr-btn" title="プロジェクト一覧を再読み込み">↻ 更新</button>
