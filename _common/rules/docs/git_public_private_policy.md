@@ -1,0 +1,76 @@
+# Git 公開/非公開分離ポリシー
+
+作成日: 2026-05-24
+
+## 目的
+
+GitHub で公開または共有する本体 repo と、公開しない `_private/` 領域を明確に分離する。
+
+## 基本方針
+
+- 本体 repo には、公開してよいコード、仕様、一般手順だけを置く。
+- `_private/` には、公開しない運用メモ、内部資料、画像、個人情報、秘密情報を置く。
+- `_private/` は本体 repo の `.gitignore` で除外する。
+- `_private/` が Git 管理を必要とする場合は、別 repo として管理する。
+
+## 標準構成
+
+```text
+project/
+  .git/
+  .gitignore
+  _private/
+    .git/
+    doc/
+  tickets/
+  src/
+```
+
+この構成では、`project` 本体と `_private` は別の Git 履歴を持つ。
+
+## 確認コマンド
+
+本体 repo で `_private/` が ignore されているか確認する。
+
+```powershell
+git -C G:\codex\issue_manager status --short --ignored
+```
+
+`!! _private/` と表示されれば、本体 repo から無視されている。
+
+`_private` 自体が別 Git repo か確認する。
+
+```powershell
+Test-Path G:\codex\issue_manager\_private\.git
+git -C G:\codex\issue_manager\_private status --short
+```
+
+## コミット方針
+
+本体 repo にコミットするもの:
+
+- ソースコード
+- 公開仕様
+- 公開してよい共通ルール
+- 公開してよい Enterprise 拡張の枠組み
+
+`_private` repo にコミットするもの:
+
+- 非公開手順
+- 内部メモ
+- 公開しない画像や素材
+- 運用上の個別事情
+
+コミットしないもの:
+
+- API key
+- token
+- 認証情報
+- 個人情報
+- 一時ログ
+- build 出力
+
+## 注意
+
+運用版だけに変更を置くと、開発版から同期したときに消える。
+重要な変更は、GitHub 連携している開発版に先に入れる。

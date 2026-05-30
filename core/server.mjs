@@ -115,7 +115,7 @@ logger = createLogger({ logDir: ARGS.logDir })
 // ────────────────────────────────────────────────
 const statusMd = createStatusMdGenerator({
   listTickets: tickets.listTickets,
-  detectProjects: projects.detectProjects,
+  detectProjects: (roots, logger) => projects.detectProjects(roots, logger, APP_ROOT),
   logger,
 })
 
@@ -134,7 +134,7 @@ const aiState = createAiStateManager({ aiName: ARGS.aiName, logger })
 // 起動
 // ────────────────────────────────────────────────
 await scaffold.ensurePublic(PUBLIC_DIR, PUBLIC_FILES, logger).catch(e => { logger.logErr('public展開失敗:', e); process.exit(1) })
-await scaffold.ensureSelf(SELF_DIR, logger).catch(e => { logger.logErr('_self初期化失敗:', e) })
+// ensureSelf は廃止 (_self/tickets は使わない運用に移行済み。起動のたびに再作成されるため削除)
 await scaffold.ensureTemplate(TEMPLATE_DIR, logger).catch(e => { logger.logErr('_template初期化失敗:', e) })
 
 const handler = makeHandler({
@@ -151,6 +151,7 @@ const handler = makeHandler({
   aiState,
   apiToken: ARGS.apiToken,
   configPath: ARGS.configPath,
+  selfPath: APP_ROOT,
 })
 
 const server = http.createServer(handler)

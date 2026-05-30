@@ -18,6 +18,25 @@ const api = {
   async projects() {
     const r = await fetch('/api/projects'); return r.json()
   },
+  async commonRules() {
+    const r = await fetch('/api/common-rules')
+    if (!r.ok) throw await r.json()
+    return r.json()
+  },
+  async appManifests(params = {}) {
+    const q = new URLSearchParams()
+    for (const [key, value] of Object.entries(params)) {
+      if (value) q.set(key, value)
+    }
+    const r = await fetch('/api/app-manifests' + (q.toString() ? '?' + q.toString() : ''))
+    if (!r.ok) throw await r.json()
+    return r.json()
+  },
+  async appManifest(name) {
+    const r = await fetch('/api/projects/' + encodeURIComponent(name) + '/app-manifest')
+    if (!r.ok) throw await r.json()
+    return r.json()
+  },
   async importCandidates() {
     const r = await fetch('/api/projects/import-candidates')
     if (!r.ok) throw await r.json()
@@ -136,6 +155,11 @@ const api = {
     if (!r.ok) throw await r.json()
     return r.json()
   },
+  async enterpriseFeatures() {
+    const r = await fetch('/api/enterprise/features')
+    if (!r.ok) throw await r.json()
+    return r.json()
+  },
 }
 
 const state = {
@@ -149,6 +173,8 @@ const state = {
   activeRootId: null,
 }
 
+const enterpriseExtensions = []
+
 const THEME_STORAGE_KEY = 'issue_manager.theme'
 const THEMES = [
   { id: 'sumi', label: 'Sumi' },
@@ -157,7 +183,18 @@ const THEMES = [
   { id: 'matcha', label: 'Matcha' },
 ]
 
+const LANE_META = {
+  inbox: { label: 'inbox', colorName: '入力', badge: '入力' },
+  todo: { label: 'todo', colorName: '灰', badge: 'todo' },
+  doing: { label: 'doing', colorName: '青', badge: 'doing' },
+  review: { label: 'review', colorName: '黄', badge: '確認待ち' },
+  blocked: { label: 'blocked', colorName: '赤', badge: 'blocked' },
+  done: { label: 'done', colorName: '黒', badge: 'done' },
+  archive: { label: 'archive', colorName: '退避', badge: 'archive' },
+}
+
 function $(sel) { return document.querySelector(sel) }
+function $all(sel, root = document) { return Array.from(root.querySelectorAll(sel)) }
 function el(tag, attrs, ...children) {
   const node = document.createElement(tag)
   if (attrs) for (const [k,v] of Object.entries(attrs)) {
@@ -166,6 +203,7 @@ function el(tag, attrs, ...children) {
     else if (k === 'html') node.innerHTML = v
     else if (k.startsWith('on') && typeof v === 'function') node.addEventListener(k.slice(2), v)
     else if (v === true) node.setAttribute(k, '')
+    else if (v === false) {}
     else if (v != null) node.setAttribute(k, v)
   }
   for (const c of children) if (c) node.appendChild(typeof c === 'string' ? document.createTextNode(c) : c)
@@ -259,6 +297,66 @@ function modal({ title, body, actions }) {
   })
 }
 
+async function loadEnterpriseExtensions() {
+  let res
+  try {
+    res = await api.enterpriseFeatures()
+  } catch (_) {
+    return
+  }
+  for (const feature of res.features || []) {
+    if (feature.cssPath) {
+      const link = document.createElement('link')
+      link.rel = 'stylesheet'
+      link.href = feature.cssPath
+      document.head.appendChild(link)
+    }
+    if (!feature.modulePath) continue
+    try {
+      const mod = await import(feature.modulePath)
+      if (typeof mod.registerIssueManagerExtension !== 'function') continue
+      const ext = await mod.registerIssueManagerExtension({
+        api,
+        state,
+        el,
+        modal,
+        toast,
+        todayIso,
+        todayCompact,
+        nowIsoMinute,
+        loadTickets,
+        loadProjects,
+        selectProject,
+        selectTicket,
+        escapeHtml,
+        mount: $('#enterprise-actions'),
+        get laneMounts() {
+          const laneIds = ['inbox','todo','doing','review','blocked','done','archive']
+          const result = {}
+          for (const id of laneIds) {
+            result[id] = document.querySelector('[data-lane-actions="' + id + '"]')
+          }
+          return result
+        },
+      })
+      if (ext) {
+        enterpriseExtensions.push(ext)
+      }
+    } catch (e) {
+      toast('Enterprise extension failed: ' + (e.error || e.message), 'err')
+    }
+  }
+}
+
+function notifyEnterpriseExtensions(eventName) {
+  for (const ext of enterpriseExtensions) {
+    const fn = ext && ext['on' + eventName[0].toUpperCase() + eventName.slice(1)]
+    if (typeof fn === 'function') {
+      try { fn({ state }) } catch (e) { console.error(e) }
+    }
+  }
+}
+
 async function init() {
   setupThemeSelector()
   try {
@@ -271,6 +369,7 @@ async function init() {
     toast('サーバー接続失敗: ' + e.message, 'err')
     return
   }
+  await loadEnterpriseExtensions()
   await loadProjects()
 
   $('#btn-reload').onclick = () => loadProjects()
@@ -288,6 +387,7 @@ async function init() {
   $('#btn-migrate').onclick = migrateDialog
   $('#btn-detail-open').onclick = openActiveTicketInEditor
   $('#btn-detail-reload').onclick = reloadActiveTicket
+  $('#btn-detail-link').onclick = copyDeepLinkForActiveTicket
   $('#btn-detail-resume').onclick = copyResumePromptForActiveTicket
   $('#btn-detail-archive').onclick = archiveActiveTicket
   $('#btn-detail-unarchive').onclick = unarchiveActiveTicket
@@ -296,6 +396,11 @@ async function init() {
     b.onclick = () => moveActiveTicket(b.dataset.lane)
   })
   setupDetailToolbar()
+  await applyDeepLinkFromUrl()
+  window.addEventListener('hashchange', () => {
+    const section = sectionFromHash()
+    if (section && state.activeTicket) scrollToDetailSection(section)
+  })
 }
 
 async function loadProjects() {
@@ -318,7 +423,10 @@ async function loadProjects() {
       if (state.activeProject === projectId) li.classList.add('active')
       ul.appendChild(li)
     }
-    if (state.activeProject) await loadTickets(state.activeProject)
+    if (state.activeProject) {
+      await loadTickets(state.activeProject)
+      notifyEnterpriseExtensions('projectSelected')
+    }
   } catch (e) {
     toast('プロジェクト読み込み失敗: ' + (e.error || e.message), 'err')
   }
@@ -344,6 +452,7 @@ async function selectProject(name) {
   $('#btn-export').disabled = false
   $('#btn-migrate').style.display = proj.layout === 'legacy' ? '' : 'none'
   await loadTickets(name)
+  notifyEnterpriseExtensions('projectSelected')
 }
 
 async function rootManagerDialog() {
@@ -437,24 +546,31 @@ async function loadTickets(name) {
   }
 }
 
+function laneMeta(lane) {
+  return LANE_META[lane] || { label: lane, colorName: lane, badge: lane }
+}
+
 function renderKanban() {
   const kanban = $('#kanban')
   kanban.innerHTML = ''
   kanban.classList.toggle('show-archive', state.showArchive)
   const lanes = state.showArchive
-    ? ['inbox','todo','doing','blocked','done','archive']
-    : ['inbox','todo','doing','blocked','done']
+    ? ['inbox','todo','doing','review','blocked','done','archive']
+    : ['inbox','todo','doing','review','blocked','done']
   for (const lane of lanes) {
     const items = state.tickets[lane] || []
     const laneEl = el('div', { class: 'lane' + (lane === 'archive' ? ' archive-lane' : ''), 'data-lane': lane })
+    const meta = laneMeta(lane)
     laneEl.appendChild(el('div', { class: 'lane-head' },
-      el('span', { text: lane }),
+      el('span', { class: 'lane-title', title: meta.colorName, text: meta.label }),
       el('span', { class: 'count', text: String(items.length) })
     ))
+    const actionBar = el('div', { class: 'lane-action-bar', 'data-lane-actions': lane })
+    laneEl.appendChild(actionBar)
     const body = el('div', { class: 'lane-body' })
     for (const t of items) {
       const card = el('div', {
-        class: 'card' + (state.activeTicket && state.activeTicket.lane === lane && state.activeTicket.file === t.file ? ' active' : ''),
+        class: 'card' + (state.activeTicket && state.activeTicket.lane === lane && state.activeTicket.file === t.file ? ' active' : '') + ((t.status || '').toLowerCase() === 'pending' ? ' card-pending' : ''),
         draggable: lane === 'archive' ? 'false' : 'true',
         'data-lane': lane,
         'data-file': t.file,
@@ -462,7 +578,9 @@ function renderKanban() {
       })
       card.appendChild(el('div', { class: 'card-title', text: t.title }))
       const badges = []
-      if (lane === 'doing') {
+      if ((t.status || '').toLowerCase() === 'pending') {
+        badges.push({ cls: 'badge-pending', text: '保留' })
+      } else if (lane === 'doing') {
         const s = (t.status || '').toLowerCase()
         if (s === '進行中' || s === 'active' || s === 'in_progress') {
           badges.push({ cls: 'badge-progress', text: '進行中' })
@@ -471,13 +589,24 @@ function renderKanban() {
         } else if (t.status && s !== 'doing') {
           badges.push({ cls: 'badge-other', text: t.status })
         }
+      } else if (lane === 'review') {
+        badges.push({ cls: 'badge-lane', text: '確認待ち', lane })
+      }
+      if (!badges.some(b => b.cls === 'badge-lane') && lane !== 'archive') {
+        badges.unshift({ cls: 'badge-lane', text: meta.badge, lane })
       }
       if (lane === 'archive' && t.archivedFrom) {
         badges.push({ cls: 'badge-archive-from', text: '元: ' + t.archivedFrom })
       }
       if (badges.length > 0) {
         const bWrap = el('div', { class: 'card-badges' })
-        for (const b of badges) bWrap.appendChild(el('span', { class: 'badge ' + b.cls, text: b.text }))
+        for (const b of badges) {
+          bWrap.appendChild(el('span', {
+            class: 'badge ' + b.cls,
+            'data-lane': b.lane || null,
+            text: b.text,
+          }))
+        }
         card.appendChild(bWrap)
       }
       card.appendChild(el('div', { class: 'card-meta', text: t.file }))
@@ -509,7 +638,7 @@ function renderKanban() {
   }
 }
 
-async function selectTicket(lane, file) {
+async function selectTicket(lane, file, opts = {}) {
   try {
     const data = await api.readTicket(state.activeProject, lane, file)
     let archivedFrom = null
@@ -518,6 +647,8 @@ async function selectTicket(lane, file) {
     state.activeTicket = { lane, file, content: data.content, mtime: data.mtime, path: data.path, archivedFrom }
     renderKanban()
     renderDetail()
+    if (opts.updateUrl !== false) updateTicketUrl(opts.section || null)
+    if (opts.section) setTimeout(() => scrollToDetailSection(opts.section), 0)
   } catch (e) {
     toast('読み込み失敗: ' + (e.error || e.message), 'err')
   }
@@ -548,6 +679,143 @@ function renderDetail() {
   if (tb) tb.classList.toggle('is-archive', isArchive)
   const html = window.marked ? window.marked.parse(t.content) : t.content.replace(/</g, '&lt;')
   $('#detail-body').innerHTML = html
+  annotateDetailHeadings()
+  notifyEnterpriseExtensions('ticketSelected')
+}
+
+function normalizeSectionName(text) {
+  return String(text || '').replace(/\s+/g, ' ').trim()
+}
+
+function sectionIdFromText(text) {
+  const normalized = normalizeSectionName(text)
+  if (!normalized) return 'section'
+  return 'section-' + encodeURIComponent(normalized)
+    .replace(/%/g, '')
+    .replace(/[^A-Za-z0-9_-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase()
+}
+
+function annotateDetailHeadings() {
+  const body = $('#detail-body')
+  if (!body) return
+  const used = new Map()
+  for (const h of $all('h1,h2,h3,h4,h5,h6', body)) {
+    const section = normalizeSectionName(h.textContent)
+    if (!section) continue
+    let id = sectionIdFromText(section)
+    const count = used.get(id) || 0
+    used.set(id, count + 1)
+    if (count) id += '-' + (count + 1)
+    h.id = id
+    h.dataset.section = section
+    h.classList.add('detail-heading-anchor')
+    const anchor = el('button', {
+      type: 'button',
+      class: 'section-link-button',
+      title: 'このセクションへのリンクをコピー',
+      onclick: async e => {
+        e.preventDefault()
+        e.stopPropagation()
+        await copyDeepLinkForActiveTicket(section)
+      },
+      text: '🔗',
+    })
+    h.appendChild(anchor)
+  }
+}
+
+function sectionFromHash() {
+  const raw = decodeURIComponent((location.hash || '').replace(/^#/, ''))
+  if (!raw) return ''
+  if (raw === 'review') return 'レビュー欄'
+  if (raw === 'check-items') return 'チェック項目'
+  if (raw.startsWith('section=')) return raw.slice('section='.length).trim()
+  return raw.trim()
+}
+
+function findHeadingForSection(section) {
+  const wanted = normalizeSectionName(section)
+  if (!wanted) return null
+  return $all('#detail-body h1,#detail-body h2,#detail-body h3,#detail-body h4,#detail-body h5,#detail-body h6')
+    .find(h => normalizeSectionName(h.dataset.section || h.textContent.replace('🔗', '')) === wanted) || null
+}
+
+function scrollToDetailSection(section) {
+  const heading = findHeadingForSection(section)
+  if (!heading) {
+    toast('セクションが見つかりません: ' + section, 'err')
+    return
+  }
+  heading.scrollIntoView({ block: 'start', behavior: 'smooth' })
+  heading.classList.add('section-highlight')
+  setTimeout(() => heading.classList.remove('section-highlight'), 1800)
+}
+
+function currentVisibleSection() {
+  const body = $('#detail-body')
+  if (!body) return ''
+  const headings = $all('h1,h2,h3,h4,h5,h6', body)
+  if (!headings.length) return ''
+  const top = body.getBoundingClientRect().top + 8
+  let current = headings[0]
+  for (const h of headings) {
+    if (h.getBoundingClientRect().top <= top) current = h
+    else break
+  }
+  return normalizeSectionName(current.dataset.section || current.textContent.replace('🔗', ''))
+}
+
+function updateTicketUrl(section) {
+  const t = state.activeTicket
+  if (!t || !state.activeProject) return
+  const url = new URL(location.href)
+  url.searchParams.set('project', state.activeProject)
+  url.searchParams.set('lane', t.lane)
+  url.searchParams.set('ticket', t.file)
+  url.hash = section ? 'section=' + encodeURIComponent(section) : ''
+  history.replaceState(null, '', url)
+}
+
+async function copyDeepLinkForActiveTicket(section = null) {
+  const t = state.activeTicket
+  if (!t) return
+  const targetSection = section || currentVisibleSection()
+  const url = new URL(location.href)
+  url.searchParams.set('project', state.activeProject)
+  url.searchParams.set('lane', t.lane)
+  url.searchParams.set('ticket', t.file)
+  url.hash = targetSection ? 'section=' + encodeURIComponent(targetSection) : ''
+  const ok = await copyToClipboard(url.toString())
+  if (ok) toast(targetSection ? 'セクションリンクをコピーしました' : 'チケットリンクをコピーしました', 'ok')
+  else {
+    await modal({
+      title: '手動でコピーしてください',
+      body: '<textarea readonly style="width:100%;height:120px;font-size:11px;font-family:monospace">' + escapeHtml(url.toString()) + '</textarea>',
+      actions: [{ label: '閉じる', value: null }],
+    })
+  }
+}
+
+function findTicketLane(file) {
+  if (!file || !state.tickets) return ''
+  for (const lane of ['inbox','todo','doing','review','blocked','done','archive']) {
+    if ((state.tickets[lane] || []).some(t => t.file === file)) return lane
+  }
+  return ''
+}
+
+async function applyDeepLinkFromUrl() {
+  const params = new URLSearchParams(location.search)
+  const projectId = params.get('project')
+  const ticket = params.get('ticket')
+  if (!projectId || !ticket) return
+  if (!state.projects.some(p => (p.id || p.name) === projectId)) return
+  await selectProject(projectId)
+  const lane = params.get('lane') || findTicketLane(ticket)
+  if (!lane) return
+  await selectTicket(lane, ticket, { section: sectionFromHash(), updateUrl: false })
 }
 
 async function reloadActiveTicket() {
@@ -789,6 +1057,27 @@ async function showProjectInfo(projectId) {
     ['構造', p.layout === 'legacy' ? 'legacy' : 'new'],
     ['schema', p.schemaOk ? 'OK' : '未確認 / 旧形式'],
   ]
+  if (p.appManifest) {
+    rows.push(
+      ['アプリ識別', p.appManifest.ok ? 'OK' : '要確認'],
+      ['アプリID', p.appManifest.appId || ''],
+      ['仲間ID', p.appManifest.familyId || ''],
+      ['役割', p.appManifest.role || ''],
+      ['環境', p.appManifest.environment || ''],
+      ['バージョン', p.appManifest.version || ''],
+      ['機能', (p.appManifest.capabilityNames || []).join(', ')],
+      ['manifest', p.appManifest.path || '']
+    )
+    if (!p.appManifest.ok && p.appManifest.errors && p.appManifest.errors.length) {
+      rows.push(['manifestエラー', p.appManifest.errors.join('; ')])
+    }
+  }
+  if (p.commonRules && p.commonRules.exists) {
+    rows.push(
+      ['共通ルール', p.commonRules.rulesPath || ''],
+      ['共通docs', (p.commonRules.docs || []).join('\n')]
+    )
+  }
   const body = el('div', { class: 'project-info' },
     ...rows.map(([k, v]) => el('div', { class: 'project-info-row' },
       el('div', { class: 'project-info-key', text: k }),
@@ -945,6 +1234,7 @@ async function newTicketDialog() {
     el('label', { text: '配置レーン' }),
     el('select', { id: 'new-tic-lane', style: 'margin-bottom:8px' },
       el('option', { value: 'todo', text: 'todo（精査済み）' }),
+      el('option', { value: 'review', text: 'review（確認待ち）' }),
       el('option', { value: 'inbox', text: 'inbox（未整理のアイデア・報告）' })
     ),
     el('label', { text: 'ファイル名（.md 必須、例: ' + today + '_P2_実装_新機能.md）' }),
@@ -1350,6 +1640,19 @@ async function buildAiSessionHistorySection(projectName) {
   }
 }
 
+function buildCommonRulesSection(project) {
+  const common = project && project.commonRules
+  if (!common || !common.exists) return ''
+  const lines = [
+    '## 共通運用ルール',
+    'プロジェクト固有ルールの前に、以下の共通ルールを読んでください。',
+    '- ' + common.rulesPath,
+  ]
+  for (const doc of common.docs || []) lines.push('- ' + doc)
+  lines.push('')
+  return lines.join('\n')
+}
+
 async function copyToClipboard(text) {
   try {
     await navigator.clipboard.writeText(text)
@@ -1376,8 +1679,10 @@ async function copyResumePromptForProject() {
   const proj = state.projects.find(p => (p.id || p.name) === state.activeProject)
   const projName = proj ? proj.name : state.activeProject
   const tp = projectTicketsPath(projName, proj ? proj.layout : 'new', proj && proj.rootPath)
+  const commonRules = buildCommonRulesSection(proj)
   const aiHistory = await buildAiSessionHistorySection(state.activeProject)
   const prompt = [
+    commonRules,
     tp + ' の RULES.md と INDEX.md を読んでください。',
     'セッションを再開します。',
     '',
@@ -1413,7 +1718,9 @@ async function copyResumePromptForActiveTicket() {
   const tp = projectTicketsPath(projName, proj ? proj.layout : 'new', proj && proj.rootPath)
   const sep = state.serverInfo && state.serverInfo.platform !== 'win32' ? '/' : '\\'
   const ticketPath = [tp, t.lane, t.file].join(sep)
+  const commonRules = buildCommonRulesSection(proj)
   const prompt = [
+    commonRules,
     tp + ' の RULES.md を読んだ後、以下のチケットを開いて作業を再開してください。',
     '',
     'チケット: ' + ticketPath,
@@ -1449,7 +1756,7 @@ async function exportDialog() {
     ),
     el('label', { text: '対象レーン' }),
     el('div', { style: 'font-size:11px; color: var(--muted); margin-bottom:4px' },
-      'アクティブレーン（inbox/todo/doing/blocked/done）は常に含まれます。.trash は常に除外されます。'
+      'アクティブレーン（inbox/todo/doing/review/blocked/done）は常に含まれます。.trash は常に除外されます。'
     ),
     el('label', { style: 'display:flex; align-items:center; gap:6px; cursor:pointer' },
       el('input', { type: 'checkbox', id: 'exp-archive', checked: true, style: 'width:auto; margin-bottom:0' }),

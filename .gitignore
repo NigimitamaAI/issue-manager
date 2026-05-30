@@ -9,13 +9,9 @@ public/
 publicx/
 
 # issue_manager local work queues
-# done/ is kept as shared history. Other queues are local operating state.
-_self/tickets/inbox/
-_self/tickets/todo/
-_self/tickets/doing/
-_self/tickets/blocked/
-_self/tickets/archive/
-_self/tickets/.trash/
+# Tickets are managed by the production instance. Only _template/ is needed.
+_self/
+tickets/
 
 # Generated ticket status files
 **/tickets/STATUS.md
@@ -23,6 +19,10 @@ _self/tickets/.trash/
 
 # Private repository / private notes
 _private/
+
+
+# enterprise / enterprise plug in
+enterprise/
 
 # Local operation artifacts
 _new_files/

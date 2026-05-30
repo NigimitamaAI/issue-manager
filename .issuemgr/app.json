@@ -1,0 +1,15 @@
+{
+  "schema": "issue-manager-app-manifest-v1",
+  "appId": "issue_manager",
+  "familyId": "issue-manager",
+  "role": "source",
+  "displayName": "issue_manager",
+  "environment": "development",
+  "version": "1.0.0",
+  "capabilities": {
+    "issueManager.selfTickets": {
+      "type": "tickets",
+      "path": "_self/tickets"
+    }
+  }
+}

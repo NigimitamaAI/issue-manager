@@ -1,0 +1,9 @@
+{
+  "unregisteredAt": "2026-05-30T11:02:34.680Z",
+  "mode": "keep",
+  "projectId": "default~issue_manager",
+  "projectName": "issue_manager",
+  "ticketsDir": "tickets",
+  "archivePath": "",
+  "note": "tickets/ はそのまま残し、このファイルにより issue_manager の検出対象から除外します。"
+}

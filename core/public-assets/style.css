@@ -29,6 +29,13 @@
   --shadow:     rgba(0,0,0,0.55);
   --on-accent:  #fff;
   --on-warn:    #000;
+  --lane-color-inbox: #8b5cf6;
+  --lane-color-todo: #9ca3af;
+  --lane-color-doing: #3b82f6;
+  --lane-color-review: #eab308;
+  --lane-color-blocked: #ef4444;
+  --lane-color-done: #1f2937;
+  --lane-color-archive: #6b7280;
   --hdr-h: 44px;
 }
 
@@ -273,15 +280,36 @@ body {
 #kanban {
   flex: 1;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(5, minmax(150px, 1fr));
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-areas:
+    "inbox todo doing review done"
+    "inbox todo blocked review done";
   gap: 6px;
   padding: 8px;
-  overflow: hidden;
+  overflow: auto;
   min-height: 0;
 }
 #kanban.show-archive {
-  grid-template-columns: repeat(5, 1fr) 0.7fr;
+  grid-template-columns: repeat(5, minmax(150px, 1fr)) minmax(120px, 0.7fr);
+  grid-template-areas:
+    "inbox todo doing review done archive"
+    "inbox todo blocked review done archive";
 }
+.lane[data-lane="inbox"] { grid-area: inbox; }
+.lane[data-lane="todo"] { grid-area: todo; }
+.lane[data-lane="doing"] { grid-area: doing; }
+.lane[data-lane="review"] { grid-area: review; }
+.lane[data-lane="blocked"] { grid-area: blocked; }
+.lane[data-lane="done"] { grid-area: done; }
+.lane[data-lane="archive"] { grid-area: archive; }
+.lane[data-lane="inbox"] { --lane-color: var(--lane-color-inbox); }
+.lane[data-lane="todo"] { --lane-color: var(--lane-color-todo); }
+.lane[data-lane="doing"] { --lane-color: var(--lane-color-doing); }
+.lane[data-lane="review"] { --lane-color: var(--lane-color-review); }
+.lane[data-lane="blocked"] { --lane-color: var(--lane-color-blocked); }
+.lane[data-lane="done"] { --lane-color: var(--lane-color-done); }
+.lane[data-lane="archive"] { --lane-color: var(--lane-color-archive); }
 .lane.archive-lane {
   background: var(--panel-bg);
   border-color: var(--border);
@@ -303,6 +331,7 @@ body {
 .lane {
   background: var(--lane-bg);
   border: 1px solid var(--border);
+  border-top: 3px solid var(--lane-color, var(--border));
   border-radius: 6px;
   display: flex;
   flex-direction: column;
@@ -319,8 +348,33 @@ body {
   border-bottom: 1px solid var(--border);
   display: flex;
   justify-content: space-between;
+  align-items: center;
+}
+.lane-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.lane-title::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--lane-color, var(--muted));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--lane-color, var(--muted)) 25%, transparent);
 }
 .lane-head .count { color: var(--label); font-weight: 700; }
+.lane-action-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 5px 6px;
+  min-height: 0;
+  border-bottom: 1px solid var(--border);
+}
+.lane-action-bar:empty {
+  display: none;
+}
 .lane-body {
   flex: 1;
   overflow-y: auto;
@@ -329,6 +383,7 @@ body {
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
+  border-left: 3px solid var(--lane-color, var(--border));
   border-radius: 4px;
   padding: 7px 9px;
   margin-bottom: 6px;
@@ -354,7 +409,20 @@ body {
 .badge-progress { background: var(--ok); color: var(--on-warn); }
 .badge-paused { background: var(--warn); color: var(--on-warn); }
 .badge-other { background: var(--surface-2); color: var(--muted); border: 1px solid var(--border); }
+.badge-lane {
+  background: color-mix(in srgb, var(--lane-color, var(--muted)) 20%, var(--surface));
+  color: var(--text);
+  border: 1px solid color-mix(in srgb, var(--lane-color, var(--muted)) 70%, var(--border));
+}
+.badge-lane[data-lane="done"] {
+  background: var(--lane-color-done);
+  color: #fff;
+}
+.badge-lane[data-lane="review"] {
+  color: var(--on-warn);
+}
 .card.active .badge-other { background: rgba(255,255,255,0.15); color: var(--on-accent); border-color: transparent; }
+.card.active .badge-lane { background: rgba(255,255,255,0.18); color: var(--on-accent); border-color: rgba(255,255,255,0.28); }
 .card-meta {
   font-size: 10px;
   color: var(--muted);
@@ -452,6 +520,33 @@ body {
 #detail-body h1 { font-size: 18px; margin: 0 0 12px; color: var(--label); border-bottom: 1px solid var(--border); padding-bottom: 6px; }
 #detail-body h2 { font-size: 15px; margin: 16px 0 8px; color: var(--label); }
 #detail-body h3 { font-size: 13px; margin: 12px 0 6px; color: var(--text); }
+.detail-heading-anchor {
+  scroll-margin-top: 12px;
+  position: relative;
+}
+.section-link-button {
+  margin-left: 6px;
+  padding: 0 4px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.4;
+  cursor: pointer;
+  opacity: 0;
+}
+.detail-heading-anchor:hover .section-link-button,
+.section-link-button:focus {
+  opacity: 1;
+}
+.section-highlight {
+  animation: section-pulse 1.8s ease-out;
+}
+@keyframes section-pulse {
+  0% { background: var(--soft-warn); box-shadow: 0 0 0 4px var(--soft-warn); }
+  100% { background: transparent; box-shadow: 0 0 0 0 transparent; }
+}
 #detail-body p { margin-bottom: 8px; }
 #detail-body ul, #detail-body ol { margin: 6px 0 10px 20px; }
 #detail-body li { margin-bottom: 3px; }
@@ -671,6 +766,11 @@ body {
   font-size: 11px;
   background: transparent;
 }
+.enterprise-actions {
+  display: inline-flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
 .root-manager-note {
   color: var(--muted);
   margin-bottom: 10px;
@@ -850,6 +950,22 @@ body {
 #modal-actions button.danger:hover { background: var(--soft-danger); }
 
 @media (max-width: 640px) {
+  #kanban {
+    grid-template-columns: repeat(2, minmax(180px, 1fr));
+    grid-template-rows: repeat(3, minmax(180px, 1fr));
+    grid-template-areas:
+      "inbox todo"
+      "doing blocked"
+      "review done";
+  }
+  #kanban.show-archive {
+    grid-template-rows: repeat(4, minmax(180px, 1fr));
+    grid-template-areas:
+      "inbox todo"
+      "doing blocked"
+      "review done"
+      "archive archive";
+  }
   #modal {
     width: calc(100vw - 20px);
     max-height: calc(100vh - 20px);
@@ -865,4 +981,14 @@ body {
   #modal-actions {
     flex-wrap: wrap;
   }
+}
+
+/* pending ステータス */
+.card-pending {
+  border-left: 3px solid var(--color-pending, #b07d00);
+  opacity: 0.75;
+}
+.badge-pending {
+  background: var(--color-pending, #b07d00);
+  color: #fff;
 }

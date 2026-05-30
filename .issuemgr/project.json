@@ -1,0 +1,7 @@
+{
+  "$schema": "issue-manager-v1",
+  "projectName": "issue_manager",
+  "createdAt": "2026-05-24",
+  "ticketsDir": "tickets",
+  "extras": {}
+}
