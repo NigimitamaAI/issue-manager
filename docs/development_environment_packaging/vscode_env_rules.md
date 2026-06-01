@@ -94,3 +94,6 @@ networks:
 3. **共有ネットワークの確認**
    プロジェクト間で連携する場合、共通のDockerネットワーク `dev-net` が必要です。存在しない場合は、以下のコマンドで作成します。
    `docker network create dev-net`
+## 4. Docker Desktop + Traefik 初回テスト手順
+
+Preview Lane で `http://<project-name>.localhost` 形式の確認環境を使う場合は、共通 Traefik proxy の安全な初回起動手順として [`docker_traefik_test_environment_guide.md`](./docker_traefik_test_environment_guide.md) を参照してください。既存コンテナ・ネットワーク・ポートを壊さない確認順序を優先します。

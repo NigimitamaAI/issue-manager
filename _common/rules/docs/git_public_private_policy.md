@@ -1,6 +1,7 @@
 # Git 公開/非公開分離ポリシー
 
 作成日: 2026-05-24
+最終更新: 2026-05-31 (open/ 層を追加)
 
 ## 目的
 
@@ -12,6 +13,19 @@ GitHub で公開または共有する本体 repo と、公開しない `_private
 - `_private/` には、公開しない運用メモ、内部資料、画像、個人情報、秘密情報を置く。
 - `_private/` は本体 repo の `.gitignore` で除外する。
 - `_private/` が Git 管理を必要とする場合は、別 repo として管理する。
+
+## 三層ディレクトリ構造と push 判定
+
+issue_manager 本体は、公開とライセンスの軽重により以下の 3 ディレクトリに分けて管理する。さらに「完全に公開しない `_private/` 」を加えて計 4 区分となる。
+
+| ディレクトリ | ライセンス | GitHub push | 用途 |
+|---|---|---|---|
+| `core/` | Apache 2.0 | される | サーバー本体・基本機能 |
+| `open/` | Apache 2.0 | される | 公開拡張機能（extension.json を持つプラグイン） |
+| `enterprise/` | BSL 1.1 | されない | 業務拡張機能（個人・教育・非営利は無償、商用は別途契約） |
+| `_private/` | 非公開 | されない | 運用メモ、内部資料、個人情報 |
+
+`core/` と `open/` は同ライセンスだが、`core/` はサーバー本体、`open/` は extension プラグインという役割分担。`enterprise/` はライセンス境界としても分離されているため、`.gitignore` で push 対象から除外する。
 
 ## 標準構成
 
@@ -49,10 +63,16 @@ git -C G:\codex\issue_manager\_private status --short
 
 本体 repo にコミットするもの:
 
-- ソースコード
+- `core/` 下のソースコード
+- `open/` 下の公開拡張（Apache 2.0）
 - 公開仕様
 - 公開してよい共通ルール
-- 公開してよい Enterprise 拡張の枠組み
+- `_common/rules/` 以下の公開ポリシー
+
+本体 repo にコミットしないもの（`.gitignore` で除外）:
+
+- `enterprise/` 下の拡張（BSL 1.1 、別途公開体制の下で取り扱う）
+- `_private/` 以下のすべて
 
 `_private` repo にコミットするもの:
 

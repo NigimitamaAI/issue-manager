@@ -357,6 +357,44 @@ function notifyEnterpriseExtensions(eventName) {
   }
 }
 
+// 拡張が宣言するレーンバインド部品（laneButtons）を、その時点の DOM に一括で差し込む。
+// renderKanban() はレーン DOM（lane-action-bar 含む）を毎回作り直すため、拡張が個別に足し込んだボタンはそのたび消える。
+// この関数を renderKanban() の末尾で呼ぶことで、宣言型に部品を提供した拡張は何回再描画されても遺漏なく再差し込みされる。
+//
+// 拡張側の返却例:
+//   return {
+//     id: 'preview-lane',
+//     laneButtons: [
+//       {
+//         lane: 'review',                         // 対象レーン名
+//         factory: () => ensureButton(),          // ボタン要素を返す関数（同一ノードを返してよい）
+//         updateState: (btn) => { ... },         // 毎レンダー後の状態更新（任意）
+//       },
+//     ],
+//   }
+function attachExtensionLaneParts() {
+  for (const ext of enterpriseExtensions) {
+    if (!ext || !Array.isArray(ext.laneButtons)) continue
+    for (const decl of ext.laneButtons) {
+      if (!decl || !decl.lane) continue
+      const bar = document.querySelector('[data-lane-actions="' + decl.lane + '"]')
+      if (!bar) continue  // レーンが表示中でない（archive 隠し等）ならスキップ
+      let btn = null
+      try {
+        btn = typeof decl.factory === 'function' ? decl.factory() : null
+      } catch (e) {
+        console.error('[ext laneButtons] factory error for ' + (ext.id || '?'), e)
+      }
+      if (btn && !bar.contains(btn)) bar.appendChild(btn)
+      if (btn && typeof decl.updateState === 'function') {
+        try { decl.updateState(btn) } catch (e) {
+          console.error('[ext laneButtons] updateState error for ' + (ext.id || '?'), e)
+        }
+      }
+    }
+  }
+}
+
 async function init() {
   setupThemeSelector()
   try {
@@ -636,6 +674,8 @@ function renderKanban() {
     laneEl.appendChild(body)
     kanban.appendChild(laneEl)
   }
+  // 拡張が宣言したレーンバインド部品を一括再差し込み。レーン DOM を作り直した後だけ呼べばよい。
+  attachExtensionLaneParts()
 }
 
 async function selectTicket(lane, file, opts = {}) {

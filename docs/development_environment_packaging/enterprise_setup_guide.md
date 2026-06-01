@@ -100,6 +100,9 @@ networks:
 4. 各プロジェクト側の `docker-compose.yml` で、環境変数 `VIRTUAL_HOST=<プロジェクト名>.localhost` を設定し、共通ネットワーク `dev-net` に所属させることで、ポート競合なく `http://<プロジェクト名>.localhost` でアクセスできるようになります。
 
 ---
+### Traefik 版の初回テスト手順
+
+Docker Desktop 上で Preview Lane 用の共通 Traefik proxy を使う場合は、既存環境を壊さないための確認順序をまとめた [`docker_traefik_test_environment_guide.md`](./docker_traefik_test_environment_guide.md) を参照してください。
 
 ## 4. 導入後の動作確認
 

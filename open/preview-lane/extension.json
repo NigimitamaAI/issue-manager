@@ -1,0 +1,13 @@
+{
+  "id": "preview-lane",
+  "name": "プレビューレーン（確認・テスト環境管理）",
+  "tier": "open",
+  "license": "Apache-2.0",
+  "requiresStandardApi": "1.0",
+  "dependencies": [],
+  "enabledByDefault": true,
+  "version": "0.1.0",
+  "capabilities": [
+    "previewLane.manage"
+  ]
+}

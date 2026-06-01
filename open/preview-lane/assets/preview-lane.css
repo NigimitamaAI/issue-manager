@@ -1,0 +1,184 @@
+/* preview-lane CSS styles for Issue Manager Enterprise */
+
+.preview-lane-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-width: 500px;
+  max-width: 800px;
+  color: var(--text-color, #333);
+}
+
+.preview-status-panel {
+  background-color: var(--card-bg, #fcfaf2);
+  border: 1px solid var(--border-color, #e0dbcd);
+  border-radius: 6px;
+  padding: 16px;
+}
+
+.preview-status-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  font-size: 1.1rem;
+}
+
+.preview-status-label {
+  font-weight: bold;
+}
+
+.preview-status-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: bold;
+  color: #fff;
+}
+
+.status-badge-running {
+  background-color: #2e7d32; /* 緑 */
+}
+
+.status-badge-stopped {
+  background-color: #757575; /* 灰 */
+}
+
+.status-badge-not_configured {
+  background-color: #d84315; /* 橙 */
+}
+
+.status-badge-error {
+  background-color: #c62828; /* 赤 */
+}
+
+.preview-section-title {
+  font-size: 1rem;
+  font-weight: bold;
+  margin: 16px 0 8px 0;
+  border-left: 4px solid var(--primary-color, #4a5d4e);
+  padding-left: 8px;
+}
+
+.preview-container-list {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.container-state.up {
+  color: #2e7d32;
+  font-weight: bold;
+}
+
+.container-state.down {
+  color: #c62828;
+  font-weight: bold;
+}
+
+.preview-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-color, #e0dbcd);
+}
+
+.preview-error-box {
+  background-color: #ffebee;
+  color: #c62828;
+  border: 1px solid #ffcdd2;
+  border-radius: 4px;
+  padding: 12px;
+  font-size: 0.9rem;
+  font-family: monospace;
+  margin-top: 8px;
+}
+
+.preview-loading {
+  text-align: center;
+  color: #757575;
+  padding: 20px 0;
+}
+
+/* マニュアル・アコーディオン */
+.preview-manual-panel {
+  border-top: 1px dashed var(--border-color, #e0dbcd);
+  padding-top: 16px;
+}
+
+.preview-manual-accordion {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.manual-item {
+  border: 1px solid var(--border-color, #e0dbcd);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.manual-head {
+  background-color: var(--hdr-bg, #f4efe2);
+  padding: 10px 14px;
+  font-weight: bold;
+  font-size: 0.9rem;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  user-select: none;
+  transition: background-color 0.2s;
+}
+
+.manual-head:hover {
+  background-color: var(--border-color, #e0dbcd);
+}
+
+.manual-head::after {
+  content: '▼';
+  font-size: 0.75rem;
+  transition: transform 0.2s;
+}
+
+.manual-head.active::after {
+  transform: rotate(180deg);
+}
+
+.manual-body {
+  padding: 12px 16px;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  background-color: #fff;
+  border-top: 1px solid var(--border-color, #e0dbcd);
+}
+
+/* AIプロンプトコピーパネル */
+.preview-ai-panel {
+  margin: 12px 0;
+  padding: 12px 16px;
+  border: 1px solid var(--border-color, #e0dbcd);
+  border-radius: 6px;
+  background: var(--bg-subtle, #f9f7f2);
+}
+
+.ai-prompt-hint {
+  font-size: 0.8rem;
+  color: var(--muted, #888);
+  margin-bottom: 10px;
+}
+
+.ai-prompt-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ai-prompt-btn {
+  font-size: 0.85rem;
+}
