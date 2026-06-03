@@ -1,0 +1,35 @@
+services:
+  app:
+    image: issue-manager/web-lite:1
+    build:
+      context: .
+      dockerfile: Dockerfile
+    working_dir: /workspace
+    volumes:
+      - ${IM_PROJECT_DIR:?Set IM_PROJECT_DIR to the project root}:/workspace:cached
+    environment:
+      IM_INTERNAL_PORT: ${IM_INTERNAL_PORT:-8000}
+    command:
+      - python
+      - -m
+      - http.server
+      - ${IM_INTERNAL_PORT:-8000}
+      - --bind
+      - 0.0.0.0
+      - --directory
+      - /workspace
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=traefik
+      - traefik.http.routers.${IM_PROJECT_ID:-project}-web-lite.rule=Host(`${IM_HOST:-project.localhost}`)
+      - traefik.http.routers.${IM_PROJECT_ID:-project}-web-lite.entrypoints=web
+      - traefik.http.services.${IM_PROJECT_ID:-project}-web-lite.loadbalancer.server.port=${IM_INTERNAL_PORT:-8000}
+    networks:
+      - default
+      - traefik
+    restart: unless-stopped
+
+networks:
+  traefik:
+    external: true
+    name: traefik

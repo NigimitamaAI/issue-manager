@@ -26,6 +26,7 @@
 
 import http from 'node:http'
 import crypto from 'node:crypto'
+import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -40,6 +41,7 @@ import * as scaffold from '../lib/scaffold.mjs'
 import { createStatusMdGenerator } from '../lib/status-md.mjs'
 import { createAiStateManager } from '../lib/ai-state.mjs'
 import { makeHandler } from '../lib/routes.mjs'
+import { normalizeSharedConfig } from '../lib/shared-config.mjs'
 import { PUBLIC_FILES } from './public_embedded.mjs'
 
 // ────────────────────────────────────────────────
@@ -75,7 +77,10 @@ const CLI_ARGS = parseArgs(process.argv)
 // config 読み込み後に実 logDir 付きに作り直す。
 let logger = createLogger({})
 
-const FILE_CONFIG = loadConfigWithEnv(CLI_ARGS.configPath || CONFIG_PATH_DEFAULT, {
+const BASE_CONFIG_PATH = CLI_ARGS.configPath || CONFIG_PATH_DEFAULT
+const ENTERPRISE_CONFIG_PATH = path.join(path.dirname(BASE_CONFIG_PATH), 'config-enterprise.json')
+
+const BASE_FILE_CONFIG = loadConfigWithEnv(BASE_CONFIG_PATH, {
   port: DEFAULT_PORT,
   root: DEFAULT_ROOT,
   roots: [],
@@ -85,14 +90,24 @@ const FILE_CONFIG = loadConfigWithEnv(CLI_ARGS.configPath || CONFIG_PATH_DEFAULT
   projectName: '',
   aiName: '',
   apiToken: '',
+  shared: {},
 }, {
   // aiName は path 系ではないので pathKeys に含めない (path.resolve すると壊れる)
   pathKeys: ['root', 'nodeExe', 'bomFixerPath', 'logDir'],
   logger: { log: (...a) => logger.log(...a), warn: (...a) => logger.log(...a), error: (...a) => logger.logErr(...a) },
 })
+const FILE_CONFIG = fs.existsSync(ENTERPRISE_CONFIG_PATH)
+  ? loadConfigWithEnv(ENTERPRISE_CONFIG_PATH, BASE_FILE_CONFIG, {
+      pathKeys: ['root', 'nodeExe', 'bomFixerPath', 'logDir'],
+      logger: { log: (...a) => logger.log(...a), warn: (...a) => logger.log(...a), error: (...a) => logger.logErr(...a) },
+    })
+  : BASE_FILE_CONFIG
+
+const SHARED_CONFIG = normalizeSharedConfig(FILE_CONFIG, APP_ROOT)
 
 const ARGS = {
-  configPath: CLI_ARGS.configPath || CONFIG_PATH_DEFAULT,
+  configPath: BASE_CONFIG_PATH,
+  enterpriseConfigPath: fs.existsSync(ENTERPRISE_CONFIG_PATH) ? ENTERPRISE_CONFIG_PATH : '',
   port: CLI_ARGS.port != null ? CLI_ARGS.port : FILE_CONFIG.port,
   root: CLI_ARGS.root || FILE_CONFIG.root,
   roots: projects.normalizeRoots(CLI_ARGS.root
@@ -105,6 +120,8 @@ const ARGS = {
   // aiName: CLI > config.json > 既定値 ''
   aiName: CLI_ARGS.aiName != null ? CLI_ARGS.aiName : (FILE_CONFIG.aiName || ''),
   apiToken: FILE_CONFIG.apiToken || crypto.randomBytes(24).toString('base64url'),
+  shared: SHARED_CONFIG,
+  config: FILE_CONFIG,
 }
 
 // 確定した logDir でロガーを作り直す。
@@ -159,7 +176,9 @@ server.listen(ARGS.port, '127.0.0.1', () => {
   logger.log(`listening on http://127.0.0.1:${ARGS.port}`)
   logger.log(`root: ${ARGS.root}`)
   logger.log(`roots: ${ARGS.roots.map(r => `${r.id}=${r.path}`).join(', ')}`)
+  if (ARGS.enterpriseConfigPath) logger.log(`enterpriseConfig: ${ARGS.enterpriseConfigPath}`)
   logger.log(`logDir: ${ARGS.logDir}`)
+  logger.log(`sharedRoot: ${ARGS.shared.root}`)
   logger.log(`version: ${VERSION}`)
   logger.log(`aiName: ${aiState.isEnabled() ? aiState.getAiName() : '(disabled)'}`)
   logger.log(`apiToken: ${FILE_CONFIG.apiToken ? '(config)' : '(generated per process)'}`)

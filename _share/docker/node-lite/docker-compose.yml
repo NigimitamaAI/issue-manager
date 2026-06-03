@@ -1,0 +1,27 @@
+services:
+  app:
+    image: issue-manager/node-lite:1
+    build:
+      context: .
+      dockerfile: Dockerfile
+    working_dir: /workspace
+    volumes:
+      - ${IM_PROJECT_DIR:?Set IM_PROJECT_DIR to the project root}:/workspace:cached
+    environment:
+      NODE_ENV: development
+      IM_INTERNAL_PORT: ${IM_INTERNAL_PORT:-3000}
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=traefik
+      - traefik.http.routers.${IM_PROJECT_ID:-project}-node-lite.rule=Host(`${IM_HOST:-project.localhost}`)
+      - traefik.http.routers.${IM_PROJECT_ID:-project}-node-lite.entrypoints=web
+      - traefik.http.services.${IM_PROJECT_ID:-project}-node-lite.loadbalancer.server.port=${IM_INTERNAL_PORT:-3000}
+    networks:
+      - default
+      - traefik
+    restart: unless-stopped
+
+networks:
+  traefik:
+    external: true
+    name: traefik

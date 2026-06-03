@@ -16,6 +16,65 @@
   padding: 16px;
 }
 
+.preview-env-panel {
+  background-color: var(--card-bg, #fcfaf2);
+  border: 1px solid var(--border-color, #e0dbcd);
+  border-radius: 6px;
+  padding: 12px 16px;
+}
+
+.preview-env-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.preview-env-tab {
+  border: 1px solid var(--border-color, #d7d1c3);
+  border-left-width: 5px;
+  border-radius: 6px;
+  background: #fff;
+  color: var(--text-color, #333);
+  font-size: 0.85rem;
+  min-height: 34px;
+  max-width: 100%;
+  padding: 6px 10px;
+  overflow-wrap: anywhere;
+}
+
+.preview-env-tab:hover {
+  background: var(--hdr-bg, #f4efe2);
+}
+
+.preview-env-tab.active {
+  border-color: var(--primary-color, #4a5d4e);
+  box-shadow: 0 0 0 2px rgba(74, 93, 78, 0.16);
+  font-weight: 700;
+}
+
+.env-status-running {
+  border-left-color: #2e7d32;
+}
+
+.env-status-stopped,
+.env-status-default,
+.env-status-unknown {
+  border-left-color: #757575;
+}
+
+.env-status-error {
+  border-left-color: #c62828;
+}
+
+.env-status-not_configured,
+.env-status-warning {
+  border-left-color: #f9a825;
+}
+
+.env-status-loading {
+  border-left-color: #1565c0;
+}
+
 .preview-status-row {
   display: flex;
   align-items: center;
@@ -26,6 +85,19 @@
 
 .preview-status-label {
   font-weight: bold;
+}
+
+.preview-env-line {
+  color: var(--muted, #666);
+  font-size: 0.85rem;
+  margin: -8px 0 12px;
+}
+
+.preview-env-detail {
+  color: var(--muted, #666);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  margin: -6px 0 12px;
 }
 
 .preview-status-badge {
@@ -85,6 +157,21 @@
   margin-top: 16px;
   padding-top: 16px;
   border-top: 1px solid var(--border-color, #e0dbcd);
+}
+
+.preview-targets-box {
+  margin-top: 12px;
+}
+
+.preview-targets-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.preview-target-btn {
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .preview-error-box {

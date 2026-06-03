@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "root": "G:\\codex\\issue_manager\\_share\\docker",
+  "traefik": {
+    "path": "G:\\codex\\issue_manager\\_share\\traefik",
+    "network": "traefik",
+    "httpPort": 8280,
+    "dashboardUrl": "http://localhost:8080/dashboard/"
+  },
+  "rules": {
+    "readBeforeCreatingProjectDocker": true,
+    "preferSharedEnvironmentWhenSufficient": true,
+    "doNotExposeDangerousCleanupButtons": true,
+    "projectSpecificDockerDir": "<project>\\_docker"
+  },
+  "environments": [
+    {
+      "id": "web-lite",
+      "name": "Simple static web preview",
+      "path": "web-lite",
+      "environmentFile": "environment.json",
+      "dockerfile": "Dockerfile",
+      "composeFile": "docker-compose.yml",
+      "image": "issue-manager/web-lite:1",
+      "shareableAcrossProjects": true,
+      "requiresProjectBuild": false,
+      "weight": "light",
+      "purpose": "static-web-preview"
+    },
+    {
+      "id": "node-lite",
+      "name": "Node.js lightweight preview",
+      "path": "node-lite",
+      "environmentFile": "environment.json",
+      "dockerfile": "Dockerfile",
+      "composeFile": "docker-compose.yml",
+      "image": "issue-manager/node-lite:1",
+      "shareableAcrossProjects": true,
+      "requiresProjectBuild": false,
+      "weight": "light",
+      "purpose": "node-web-preview"
+    },
+    {
+      "id": "python-lite",
+      "name": "Python lightweight preview",
+      "path": "python-lite",
+      "environmentFile": "environment.json",
+      "dockerfile": "Dockerfile",
+      "composeFile": "docker-compose.yml",
+      "image": "issue-manager/python-lite:1",
+      "shareableAcrossProjects": true,
+      "requiresProjectBuild": false,
+      "weight": "light",
+      "purpose": "python-web-preview"
+    }
+  ]
+}

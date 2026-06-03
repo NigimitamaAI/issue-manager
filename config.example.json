@@ -14,6 +14,11 @@
   "nodeExe": "node",
   "bomFixerPath": "",
   "logDir": "logs",
+  "shared": {
+    "root": "_share",
+    "dockerRoot": "_share/docker",
+    "traefikRoot": "_share/traefik"
+  },
   "aiName": "",
   "projectName": ""
 }

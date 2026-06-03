@@ -1,0 +1,63 @@
+{
+  "id": "python-lite",
+  "name": "Python lightweight preview",
+  "scope": "shared-template",
+  "purpose": "python-web-preview",
+  "description": "Installs requirements.txt when present and runs app.py or Python http.server fallback.",
+  "composeFile": "docker-compose.yml",
+  "dockerfile": "Dockerfile",
+  "image": "issue-manager/python-lite:1",
+  "defaultInternalPort": 8000,
+  "previewUrlTemplate": "http://<project-id>.localhost:8280/",
+  "previewTargets": [
+    {
+      "id": "home",
+      "label": "ホーム",
+      "urlTemplate": "http://<project-id>.localhost:8280/",
+      "kind": "browser",
+      "primary": true
+    },
+    {
+      "id": "health",
+      "label": "疎通確認",
+      "urlTemplate": "http://<project-id>.localhost:8280/",
+      "kind": "healthcheck",
+      "expectedStatus": 200
+    }
+  ],
+  "shareableAcrossProjects": true,
+  "requiresProjectBuild": false,
+  "traefik": {
+    "enabled": true,
+    "network": "traefik",
+    "hostTemplate": "<project-id>.localhost",
+    "httpPort": 8280
+  },
+  "requiredVariables": [
+    "COMPOSE_PROJECT_NAME",
+    "IM_PROJECT_ID",
+    "IM_HOST",
+    "IM_PROJECT_DIR"
+  ],
+  "optionalVariables": [
+    "IM_INTERNAL_PORT"
+  ],
+  "commands": {
+    "status": ["compose", "ps", "--format", "json"],
+    "start": ["compose", "up", "-d"],
+    "stop": ["compose", "down"],
+    "restart": ["compose", "restart"],
+    "build": ["compose", "build"]
+  },
+  "safety": {
+    "allowBuildButton": true,
+    "allowDownVolumes": false,
+    "allowPrune": false,
+    "volumePolicy": "none"
+  },
+  "cost": {
+    "weight": "light",
+    "rebuildUsuallyNeeded": false
+  },
+  "tags": ["python", "web", "lite", "shared-template"]
+}

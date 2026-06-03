@@ -1,5 +1,6 @@
 # Environment / local settings
 config.json
+config-enterprise.json
 .env
 .env.local
 .env.*.local

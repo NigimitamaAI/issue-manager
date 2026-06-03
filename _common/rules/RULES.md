@@ -25,6 +25,8 @@ issue_manager 管理下の各プロジェクトで、公開範囲、非公開領
 - 公開 repo と非公開 repo の分離: `docs/git_public_private_policy.md`
 - プロジェクト識別とアプリ間連携: `docs/project_identity_policy.md`
 - Enterprise 拡張の入れ外し: `docs/enterprise_extension_policy.md`
+- Docker 共有 Traefik プロキシ運用: `docs/docker_shared_traefik_policy.md`
+- Docker 保守・クリーンアップ運用: `docs/docker_maintenance_policy.md`
 
 ## 公開/非公開の原則
 
@@ -32,6 +34,7 @@ issue_manager 管理下の各プロジェクトで、公開範囲、非公開領
 - 公開しない運用メモ、画像、秘密情報、内部資料は `_private/` に置く。
 - `_private/` は本体 repo から ignore し、必要に応じて別 Git repo として管理する。
 - 本体 repo に `_private/` の内容を混ぜない。
+- 公開配信するプロジェクトの Docker 確認環境では、issue_manager 共有フォルダの実体パスをプロジェクト repo に書かない。共有環境は `source: shared` / `sharedEnvironmentId` の論理参照にし、実体パスは issue_manager の `config.shared` で解決する。
 
 ## 開発版/運用版の原則
 
