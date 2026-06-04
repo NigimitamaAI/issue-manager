@@ -134,6 +134,7 @@ export async function registerIssueManagerExtension(ctx) {
 
     let selectedEnvId = ''
     let currentEnvironments = []
+    let currentSharedCandidates = []
 
     async function refreshAll() {
       await renderEnvironmentPicker()
@@ -145,6 +146,7 @@ export async function registerIssueManagerExtension(ctx) {
       try {
         const res = await getEnvironments(projectId)
         const environments = Array.isArray(res.environments) ? res.environments : []
+        currentSharedCandidates = Array.isArray(res.sharedEnvironmentCandidates) ? res.sharedEnvironmentCandidates : []
         currentEnvironments = environments
         if (!selectedEnvId) selectedEnvId = res.defaultEnvironment || environments[0]?.id || ''
         if (environments.length <= 1) {
@@ -174,6 +176,7 @@ export async function registerIssueManagerExtension(ctx) {
             }))
           }
           envPanel.appendChild(tabs)
+          renderSharedCandidates(envPanel)
         }
 
         renderTabs()
@@ -190,6 +193,70 @@ export async function registerIssueManagerExtension(ctx) {
         envPanel.style.display = ''
         envPanel.appendChild(el('div', { class: 'preview-error-box', text: '環境一覧の取得に失敗しました: ' + (e.error || e.message) }))
       }
+    }
+
+    function renderSharedCandidates(mountEl) {
+      if (!currentSharedCandidates.length) return
+      const box = el('div', { class: 'preview-shared-candidates' })
+      box.appendChild(el('div', { class: 'preview-section-title compact', text: '共有標準環境候補' }))
+      const list = el('div', { class: 'preview-candidate-list' })
+      for (const candidate of currentSharedCandidates) {
+        const meta = []
+        if (candidate.purpose) meta.push(candidate.purpose)
+        if (candidate.weight) meta.push(`cost: ${candidate.weight}`)
+        meta.push(candidate.requiresProjectBuild ? 'build必要' : 'build不要')
+        list.appendChild(el('div', { class: 'preview-candidate-item' },
+          el('strong', { text: candidate.name || candidate.id }),
+          el('span', { text: ` / ${candidate.id}` }),
+          el('small', { text: meta.join(' / ') })
+        ))
+      }
+      box.appendChild(list)
+      mountEl.appendChild(box)
+    }
+
+    function renderEnvironmentDetails(res) {
+      const env = res.environment || {}
+      const rows = []
+      if (env.source) rows.push(['source', env.source])
+      if (env.sharedEnvironmentId) rows.push(['shared', env.sharedEnvironmentId])
+      if (env.composeFile) rows.push(['compose', env.composeFile])
+      if (env.dockerfile) rows.push(['Dockerfile', env.dockerfile])
+      if (env.image) rows.push(['image', env.image])
+      if (env.cost && env.cost.weight) rows.push(['cost', env.cost.weight])
+      if (env.cost && env.cost.rebuildUsuallyNeeded != null) rows.push(['rebuild', env.cost.rebuildUsuallyNeeded ? '通常必要' : '通常不要'])
+      if (env.safety && env.safety.allowPrune === false) rows.push(['prune', '非表示'])
+      if (!rows.length) return null
+
+      const grid = el('dl', { class: 'preview-env-meta-grid' })
+      for (const [label, value] of rows) {
+        grid.appendChild(el('dt', { text: label }))
+        grid.appendChild(el('dd', { text: String(value) }))
+      }
+      return grid
+    }
+
+    function renderCustomActions(res) {
+      const actions = res.environment && Array.isArray(res.environment.customActions)
+        ? res.environment.customActions
+        : []
+      if (!actions.length) return null
+      const box = el('div', { class: 'preview-custom-actions-box' })
+      box.appendChild(el('div', { class: 'preview-section-title', text: 'カスタム操作' }))
+      const row = el('div', { class: 'preview-targets-row' })
+      for (const action of actions) {
+        row.appendChild(el('button', {
+          type: 'button',
+          class: 'hdr-btn',
+          title: action.description || action.id || '',
+          onclick: () => {
+            window.confirm(`${action.label || action.id}\n\n${action.description || '説明なし'}\n\nこの画面は登録済み customActions だけを表示します。実行APIは未接続のため、任意 shell 文字列は実行しません。`)
+          },
+          text: action.label || action.id || 'customAction'
+        }))
+      }
+      box.appendChild(row)
+      return box
     }
 
     // ステータスを読み込んで表示を更新する関数
@@ -212,7 +279,6 @@ export async function registerIssueManagerExtension(ctx) {
         statusPanel.appendChild(statusRow)
 
         const previewTargets = Array.isArray(res.previewTargets) ? res.previewTargets.filter(t => t && t.url) : []
-        const primaryTarget = previewTargets.find(t => t.primary) || previewTargets[0] || null
         const environmentName = res.environment && (res.environment.name || res.environment.id)
           ? String(res.environment.name || res.environment.id)
           : ''
@@ -225,6 +291,8 @@ export async function registerIssueManagerExtension(ctx) {
           if (res.environment.description) envMeta.push(res.environment.description)
           statusPanel.appendChild(el('div', { class: 'preview-env-detail', text: envMeta.join(' / ') }))
         }
+        const details = renderEnvironmentDetails(res)
+        if (details) statusPanel.appendChild(details)
 
         // 2. コンテナ一覧の表示 (起動中または停止中の場合)
         if (res.containers && res.containers.length > 0) {
@@ -245,12 +313,14 @@ export async function registerIssueManagerExtension(ctx) {
         // 3. アクションボタンの作成
         const isConfigured = res.status !== 'not_configured'
         const isRunning = res.status === 'running'
+        const targetLinksEnabled = (isConfigured && isRunning) || (!isConfigured && previewTargets.length > 0)
 
         const actionsRow = el('div', { class: 'preview-actions-row' },
           // 起動ボタン
           el('button', {
             type: 'button',
             class: 'hdr-btn primary',
+            title: 'docker compose up -d',
             disabled: !isConfigured || isRunning,
             onclick: async () => {
               try {
@@ -262,12 +332,13 @@ export async function registerIssueManagerExtension(ctx) {
                 toast('起動に失敗しました: ' + (e.error || e.message), 'err')
               }
             },
-            text: '▶ 起動 (docker compose up)'
+            text: '▶ 起動'
           }),
           // 停止ボタン
           el('button', {
             type: 'button',
             class: 'hdr-btn warn',
+            title: 'docker compose down',
             disabled: !isConfigured || !isRunning,
             onclick: async () => {
               try {
@@ -279,11 +350,12 @@ export async function registerIssueManagerExtension(ctx) {
                 toast('停止に失敗しました: ' + (e.error || e.message), 'err')
               }
             },
-            text: '■ 停止 (docker compose down)'
+            text: '■ 停止'
           }),
           el('button', {
             type: 'button',
             class: 'hdr-btn',
+            title: 'docker compose restart',
             disabled: !isConfigured || !isRunning,
             onclick: async () => {
               try {
@@ -294,26 +366,18 @@ export async function registerIssueManagerExtension(ctx) {
                 toast('再起動に失敗しました: ' + (e.error || e.message), 'err')
               }
             },
-            text: '↻ restart'
+            text: '↻ 再起動'
           }),
           el('button', {
             type: 'button',
             class: 'hdr-btn warn',
+            title: 'docker compose build',
             disabled: !isConfigured,
             onclick: async () => {
-              const ok = await modal({
-                title: 'Docker build の確認',
-                body: el('div', {},
-                  el('p', { text: 'build は Dockerfile、依存関係、ベースイメージを変更したときの明示操作です。通常のソース編集や静的WEB確認では、restart またはブラウザ再読込で足りることが多いです。' }),
-                  el('p', { text: '選択中の環境で docker compose build を実行しますか？' })
-                ),
-                actions: [
-                  { label: 'キャンセル', value: false },
-                  { label: 'build を実行', value: true, class: 'warn' },
-                ],
-              })
+              const ok = window.confirm('build は Dockerfile、依存関係、ベースイメージを変更したときの明示操作です。\n通常のソース編集や静的WEB確認では、restart またはブラウザ再読込で足りることが多いです。\n\n選択中の環境で docker compose build を実行しますか？')
               if (!ok) return
               try {
+                statusPanel.insertBefore(el('div', { class: 'preview-progress-box', text: 'build 要求を送信中です。完了まで時間がかかる場合があります。' }), actionsRow)
                 const buildRes = await buildEnv(projectId, selectedEnvId)
                 toast(buildRes.message || 'ビルド要求を送信しました', 'ok')
                 setTimeout(refreshAll, 3000)
@@ -335,17 +399,7 @@ export async function registerIssueManagerExtension(ctx) {
                 toast('フォルダを開けませんでした: ' + (e.error || e.message), 'err')
               }
             },
-            text: '📁 フォルダを開く'
-          }),
-          // プレビュー表示リンク
-          el('button', {
-            type: 'button',
-            class: 'hdr-btn link-btn',
-            disabled: !isRunning || !primaryTarget,
-            onclick: () => {
-              if (primaryTarget) window.open(primaryTarget.url, '_blank')
-            },
-            text: primaryTarget ? `🌐 ${primaryTarget.label || 'プレビューを開く'}` : '🌐 プレビューを開く'
+            text: '📁 フォルダ'
           }),
           // 手動更新ボタン
           el('button', {
@@ -357,7 +411,7 @@ export async function registerIssueManagerExtension(ctx) {
         )
         statusPanel.appendChild(actionsRow)
 
-        if (previewTargets.length > 1) {
+        if (previewTargets.length > 0) {
           const targetsBox = el('div', { class: 'preview-targets-box' })
           targetsBox.appendChild(el('div', { class: 'preview-section-title', text: '確認先' }))
           const targetRow = el('div', { class: 'preview-targets-row' })
@@ -365,7 +419,7 @@ export async function registerIssueManagerExtension(ctx) {
             targetRow.appendChild(el('button', {
               type: 'button',
               class: 'hdr-btn link-btn preview-target-btn',
-              disabled: !isRunning,
+              disabled: !targetLinksEnabled,
               title: target.url,
               onclick: () => window.open(target.url, '_blank'),
               text: target.label || target.id || target.url
@@ -374,6 +428,9 @@ export async function registerIssueManagerExtension(ctx) {
           targetsBox.appendChild(targetRow)
           statusPanel.appendChild(targetsBox)
         }
+
+        const customActionsBox = renderCustomActions(res)
+        if (customActionsBox) statusPanel.appendChild(customActionsBox)
 
       } catch (e) {
         statusPanel.innerHTML = '<div class="preview-error-box">ステータス取得失敗: ' + (e.error || e.message) + '</div>'
@@ -428,6 +485,7 @@ export async function registerIssueManagerExtension(ctx) {
             '- 通常の反映、restart、stop/start、build、customActions の違いが分かるようにする',
             '- customActions は許可済みバッチ/固定コマンドだけを登録し、任意 shell 文字列を画面から直接実行させない',
             '- volume削除、prune、down -v などの危険操作を標準ボタン化しない',
+            '- 容量管理は Docker Desktop / Docker CLI 側の責務とし、issue_manager には削除操作を追加しない',
             '',
             '## 出力してほしいもの',
             '- 共有標準環境を使うか、プロジェクト固有環境を作るかの判断',
@@ -482,19 +540,23 @@ export async function registerIssueManagerExtension(ctx) {
           label: '🔍 Docker環境を診断する',
           buildText: async (proj) => {
             let statusInfo = '（ステータス取得中...）'
+            let reportPath = `${proj.projectDir}\\_docker\\reports\\docker-verification-report.md`
             try {
-              const res = await getEnvStatus(projectId)
+              const res = await getEnvStatus(projectId, selectedEnvId)
               const lines = [`ステータス: ${res.status}`]
+              const env = res.environment || {}
+              const envId = String(env.id || selectedEnvId || 'default').replace(/[^A-Za-z0-9_-]/g, '-')
+              reportPath = `${proj.projectDir}\\_docker\\reports\\${envId}-verification-report.md`
               if (res.environment) {
                 lines.push('環境:')
-                if (res.environment.id) lines.push(`  - ID: ${res.environment.id}`)
-                if (res.environment.name) lines.push(`  - 名前: ${res.environment.name}`)
-                if (res.environment.purpose) lines.push(`  - 用途: ${res.environment.purpose}`)
-                if (res.environment.source) lines.push(`  - source: ${res.environment.source}`)
-                if (res.environment.composeFile) lines.push(`  - composeFile: ${res.environment.composeFile}`)
-                if (res.environment.traefik && res.environment.traefik.host) {
-                  const port = res.environment.traefik.httpPort || res.environment.traefik.port || ''
-                  lines.push(`  - Traefik: ${res.environment.traefik.host}${port ? ':' + port : ''}`)
+                if (env.id) lines.push(`  - ID: ${env.id}`)
+                if (env.name) lines.push(`  - 名前: ${env.name}`)
+                if (env.purpose) lines.push(`  - 用途: ${env.purpose}`)
+                if (env.source) lines.push(`  - source: ${env.source}`)
+                if (env.composeFile) lines.push(`  - composeFile: ${env.composeFile}`)
+                if (env.traefik && env.traefik.host) {
+                  const port = env.traefik.httpPort || env.traefik.port || ''
+                  lines.push(`  - Traefik: ${env.traefik.host}${port ? ':' + port : ''}`)
                 }
               }
               if (res.containers && res.containers.length) {
@@ -519,6 +581,21 @@ export async function registerIssueManagerExtension(ctx) {
                   lines.push(`  - ${action.label || action.id}: ${action.description || '説明なし'}${action.requiresConfirm ? ' / 確認あり' : ''}`)
                 }
               }
+              lines.push('ログ取得方法:')
+              if (env.source === 'not_configured') {
+                lines.push('  - Docker未構成環境のため docker compose logs は不要。確認URL、画面表示、アプリ本体ログを確認する。')
+              } else if (env.composeFile) {
+                lines.push(`  - docker compose -f "${env.composeFile}" logs --tail 200`)
+                lines.push(`  - docker compose -f "${env.composeFile}" ps`)
+              } else {
+                lines.push('  - docker compose logs --tail 200')
+                lines.push('  - docker compose ps')
+              }
+              if (env.source === 'shared') {
+                lines.push('  - 共有環境の実体パスは issue_manager config.shared.dockerRoot で解決し、プロジェクトrepoへ書き込まない。')
+              }
+              lines.push('AI確認用レポート出力先:')
+              lines.push(`  - ${reportPath}`)
               statusInfo = lines.join('\n')
             } catch (_) {}
             return [
@@ -533,8 +610,13 @@ export async function registerIssueManagerExtension(ctx) {
               '## 依頼内容',
               '上記のDocker確認環境が正常に動作しない原因を調査し、修正手順を教えてください。',
               '共有標準環境で足りる場合は専用環境を増やさず、必要な場合だけプロジェクト固有 _docker 環境を提案してください。',
+              `ログ、確認URL、実行した確認手順、結果、未解決事項をまとめたレポートを ${reportPath} に作成してください。`,
+              'レポートを作成する前に、出力先ディレクトリがプロジェクト配下であることを確認してください。',
               'リフレッシュ操作は、ブラウザ再読込、restart、stop/start、build、customActions のどれが適切かを分けて判断してください。',
+              'Docker容量が問題になっている場合は、まず Docker Desktop または `docker system df` / `docker system df -v` で種別別の使用量を確認してください。',
+              '削除を提案する前に、停止コンテナ、dangling image、未使用ネットワーク、未使用image、volumeを分けて一覧確認してください。',
               'volume削除、prune、down -v などの危険操作は、ユーザー確認なしに実行しないでください。',
+              '`docker system prune --volumes`、`docker volume prune`、`docker compose down -v` はデータ消失リスクがあるため、通常UIの操作や軽い提案として扱わないでください。',
               '任意 shell 文字列を画面から直接実行する提案は避け、必要な補助処理は customActions として登録できる固定バッチ/固定コマンドにしてください。',
             ].join('\n')
           },
@@ -598,6 +680,12 @@ export async function registerIssueManagerExtension(ctx) {
         content: `確認URLは環境メタデータの <code>previewTargets</code> から表示します。<code>0.0.0.0</code> はlisten addressであり、ブラウザで開くURLには使いません。<br>
                   レポート再生成などプロジェクト固有の補助処理は <code>customActions</code> として登録された固定バッチ/固定コマンドだけを画面から実行します。<br>
                   volume削除、prune、<code>down -v</code> などの危険操作は標準ボタン化せず、必要時にDocker DesktopまたはCLIで手動判断します。`
+      },
+      {
+        title: '4. 容量診断と安全境界',
+        content: `Docker容量の管理主体は Docker Desktop と Docker CLI です。issue_manager は容量削除を代行せず、確認環境の状態表示と安全な案内に留めます。<br>
+                  容量が増えた場合は <code>docker system df</code> や <code>docker system df -v</code> で種類別に確認します。画面には削除ボタンを出しません。<br>
+                  dangling image、停止コンテナ、未使用ネットワークは低リスクですが、volume削除、<code>volume prune</code>、<code>system prune --volumes</code> はデータ消失リスクがあるため、一覧確認後に手動判断します。`
       }
     ]
 
