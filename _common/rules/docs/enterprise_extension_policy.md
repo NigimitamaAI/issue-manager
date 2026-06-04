@@ -159,6 +159,40 @@ issue_manager 本体（標準 API: lib/extension-api.mjs）
 - 依存ツリー2層化ルールにより、**常に空配列 `[]` のみ許可**
 - 他拡張ID を列挙することは禁止
 
+### `aiGuidance`（任意）
+
+拡張機能に付随する AI 向け運用ルール・補助ドキュメントを宣言する。
+本体は有効化済み拡張の `aiGuidance` だけを再開プロンプトへ列挙し、AI に併読を促す。
+
+```json
+{
+  "aiGuidance": {
+    "rules": "RULES.md",
+    "docs": [
+      "docs/review_prompt_policy.md"
+    ],
+    "includeInResumePrompt": true
+  }
+}
+```
+
+- `rules` と `docs` は拡張ディレクトリからの相対パスだけを許可する
+- 拡張ディレクトリ外へ出るパス、絶対パス、存在しないパスは本体が無視する
+- 再開プロンプトには本文を埋め込まず、読むべきパスだけを列挙する
+- `includeInResumePrompt: false` の場合は列挙しない
+- Enterprise 拡張の proprietary なルール本文は本体へコピーしない。インストール済み環境で当該パスを読む方式にする
+
+#### 用途
+
+- `review-workflow`: review/ 返信確認、レビュー欄の具体化、確認手段・リンク・コマンドの記載ルール
+- `preview-lane`: Docker 確認環境、共有環境、危険操作非ボタン化などの AI 向け運用ルール
+
+#### 設計理由
+
+共通 `tickets/RULES.md` だけでは、拡張が追加するワークフロー固有の運用ルールを AI が読み落とす。
+特に review-workflow のような Enterprise 拡張では、レビュー欄の形式だけでなく、対象ドキュメント・実装・環境定義を読んで確認手法を作る必要がある。
+そのため、拡張ごとの AI ルールを manifest で宣言し、有効な拡張だけを再開プロンプトに合流させる。
+
 ## 有効化・ON/OFF 制御
 
 ### 判定ロジック（系統別、優先順）

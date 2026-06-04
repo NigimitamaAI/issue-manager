@@ -1711,6 +1711,27 @@ function buildReviewPromptGuidance(ticket) {
   return lines.join('\n')
 }
 
+async function buildExtensionRulesSection() {
+  try {
+    const res = await api.enterpriseFeatures()
+    const features = Array.isArray(res.features) ? res.features : []
+    const lines = ['## 有効な拡張機能ルール']
+    for (const feature of features) {
+      const guidance = feature && feature.aiGuidance
+      if (!guidance || (!guidance.rulesPath && !(Array.isArray(guidance.docs) && guidance.docs.length))) continue
+      lines.push(`### ${feature.id} (${feature.tier})`)
+      lines.push('この拡張機能の運用ルールも併せて読んでください。')
+      if (guidance.rulesPath) lines.push('- ' + guidance.rulesPath)
+      for (const doc of guidance.docs || []) lines.push('- ' + doc)
+    }
+    if (lines.length === 1) return ''
+    lines.push('')
+    return lines.join('\n')
+  } catch (_) {
+    return ''
+  }
+}
+
 async function copyToClipboard(text) {
   try {
     await navigator.clipboard.writeText(text)
@@ -1738,9 +1759,11 @@ async function copyResumePromptForProject() {
   const projName = proj ? proj.name : state.activeProject
   const tp = projectTicketsPath(projName, proj ? proj.layout : 'new', proj && proj.rootPath)
   const commonRules = buildCommonRulesSection(proj)
+  const extensionRules = await buildExtensionRulesSection()
   const aiHistory = await buildAiSessionHistorySection(state.activeProject)
   const prompt = [
     commonRules,
+    extensionRules,
     buildReviewPromptGuidance(),
     tp + ' の RULES.md と INDEX.md を読んでください。',
     'セッションを再開します。',
@@ -1779,8 +1802,10 @@ async function copyResumePromptForActiveTicket() {
   const sep = state.serverInfo && state.serverInfo.platform !== 'win32' ? '/' : '\\'
   const ticketPath = [tp, t.lane, t.file].join(sep)
   const commonRules = buildCommonRulesSection(proj)
+  const extensionRules = await buildExtensionRulesSection()
   const prompt = [
     commonRules,
+    extensionRules,
     buildReviewPromptGuidance(t),
     tp + ' の RULES.md を読んだ後、以下のチケットを開いて作業を再開してください。',
     '',
