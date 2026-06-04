@@ -1404,10 +1404,13 @@ async function openMeta(filename) {
 
 async function suggestNextAction() {
   if (!state.activeProject || !state.tickets) return
-  const { doing, todo } = state.tickets
+  const { review, doing, todo } = state.tickets
   let msg = ''
   let pick = null
-  if (doing && doing.length > 0) {
+  if (review && review.length > 0) {
+    pick = review[0]
+    msg = '返信確認推奨: <strong>' + escapeHtml(pick.title) + '</strong> は review にあります。レビュー欄のユーザー返信と判定を確認してください。'
+  } else if (doing && doing.length > 0) {
     pick = doing[0]
     msg = '続行推奨: <strong>' + escapeHtml(pick.title) + '</strong> は doing にあります。'
   } else {
@@ -1431,7 +1434,7 @@ async function suggestNextAction() {
   const actions = [{ label: '閉じる', value: null }]
   if (pick) {
     actions.push({ label: 'このチケットを開く', value: 'open', class: 'primary' })
-    if (pick.lane !== 'doing') {
+    if (pick.lane !== 'doing' && pick.lane !== 'review') {
       actions.push({ label: 'doing に移動して開く', value: 'move', class: 'primary' })
     }
   }
@@ -1693,6 +1696,21 @@ function buildCommonRulesSection(project) {
   return lines.join('\n')
 }
 
+function buildReviewPromptGuidance(ticket) {
+  const lines = [
+    '## review/ 返信確認ルール',
+    '- review/ にチケットがある場合は、新規 todo 着手より先にユーザーの確認・返信待ちとして扱ってください。',
+    '- review/ のチケットでは `## レビュー欄` を確認し、`### ユーザー返信欄` と `### 判定` を読む/更新してください。',
+    '- 判定は `approved` / `needs_fix` / `rejected` のいずれかです。approved は done/、needs_fix は doing/、rejected は blocked/ または再設計へ進めます。',
+    '- レビュー目的・観点・手段・チェック項目が不足している場合は、それ自体を指摘事項として残してください。',
+  ]
+  if (ticket && ticket.lane === 'review') {
+    lines.push('- 今回指定されたチケットは review/ にあります。作業再開ではなく、レビュー返信確認として処理してください。')
+  }
+  lines.push('')
+  return lines.join('\n')
+}
+
 async function copyToClipboard(text) {
   try {
     await navigator.clipboard.writeText(text)
@@ -1723,17 +1741,19 @@ async function copyResumePromptForProject() {
   const aiHistory = await buildAiSessionHistorySection(state.activeProject)
   const prompt = [
     commonRules,
+    buildReviewPromptGuidance(),
     tp + ' の RULES.md と INDEX.md を読んでください。',
     'セッションを再開します。',
     '',
     '手順:',
     '1. RULES.md で運用ルールを把握',
     '2. INDEX.md の「推奨実行順」と doing/ の状況を確認',
-    '3. doing/ にチケットがあればそれを読んで作業再開。',
+    '3. review/ にチケットがあれば、ユーザーの返信確認・判定反映を優先。',
+    '4. doing/ にチケットがあればそれを読んで作業再開。',
     '   なければ todo/ から次のチケットを選んで doing/ に移動して開始。',
-    '4. 作業中に思いついたアイデア・課題は inbox/ に起票。',
+    '5. 作業中に思いついたアイデア・課題は inbox/ に起票。',
     '   Claude提案・Claude推奨などラベルをタイトルまたは本文に明記。',
-    '5. セッション終了時は作業ログのサマリ欄に成果を1行追加、',
+    '6. セッション終了時は作業ログのサマリ欄に成果を1行追加、',
     '   詳細ログに今回のやり取りを原文追記、引継ぎメモを 1-3 行で記載。',
     '',
     aiHistory
@@ -1761,6 +1781,7 @@ async function copyResumePromptForActiveTicket() {
   const commonRules = buildCommonRulesSection(proj)
   const prompt = [
     commonRules,
+    buildReviewPromptGuidance(t),
     tp + ' の RULES.md を読んだ後、以下のチケットを開いて作業を再開してください。',
     '',
     'チケット: ' + ticketPath,
@@ -1769,9 +1790,10 @@ async function copyResumePromptForActiveTicket() {
     '手順:',
     '1. RULES.md で運用ルールを把握',
     '2. 上記チケットを読んで現状を確認（作業ログのサマリ欄と引継ぎメモを中心に）',
-    '3. 未完了の完了条件から作業を続行',
-    '4. このチケットが todo のままなら doing/ へ移動してから開始',
-    '5. セッション終了時はサマリ1行・詳細ログ原文・引継ぎメモを書き続ける',
+    '3. このチケットが review/ の場合は、レビュー欄のユーザー返信と判定を確認し、approved/needs_fix/rejected に応じて処理',
+    '4. review/ 以外の場合は、未完了の完了条件から作業を続行',
+    '5. このチケットが todo のままなら doing/ へ移動してから開始',
+    '6. セッション終了時はサマリ1行・詳細ログ原文・引継ぎメモを書き続ける',
     ''
   ].join('\n')
   const ok = await copyToClipboard(prompt)
