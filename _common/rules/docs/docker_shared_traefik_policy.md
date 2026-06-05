@@ -279,3 +279,12 @@ docker run --rm --network traefik curlimages/curl:latest -s -o /dev/null -w "%{h
 
 - `git_public_private_policy.md`: 共有 Traefik 設定そのものは公開してよい構成情報。`config.shared.traefikRoot` 配下を Git 管理する場合は公開 repo に置いて差し支えない。
 - `project_identity_policy.md`: プロジェクト固有の `<project-id>` 命名は `.issuemgr/app.json` の `appId` と整合させることを推奨する。
+
+## 関連実装
+
+このポリシーを根拠に Traefik や Docker 環境を変更する場合は、文書だけで判断せず次の実装も確認する。
+
+- `lib/shared-config.mjs`: `config.shared` と共有ルートの正規化
+- `open/preview-lane/routes.mjs`: 環境別 compose 解決、確認 URL、AI 向けプロンプト生成
+- `_share/traefik/docker-compose.yml`: 共有 Traefik 本体の実設定
+- `_share/docker/catalog.json`: 共有環境カタログとテンプレート参照

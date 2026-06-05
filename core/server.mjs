@@ -91,6 +91,44 @@ const BASE_FILE_CONFIG = loadConfigWithEnv(BASE_CONFIG_PATH, {
   aiName: '',
   apiToken: '',
   shared: {},
+  assistantPrompts: {
+    enabled: true,
+    root: '_prompts',
+    enabledPromptIds: [
+      'package:db-development-guidelines',
+    ],
+    projectPromptIds: [],
+    ticketPromptDefaults: {
+      db: [
+        'package:db-development-guidelines',
+      ],
+    },
+    triggers: {
+      db: [
+        'DB',
+        'database',
+        'SQLite',
+        'Neo4j',
+        'PostgreSQL',
+        'MySQL',
+        'migration',
+        'import',
+        'index',
+        'データ投入',
+        'マイグレーション',
+        'インデックス',
+      ],
+    },
+    prompts: [
+      {
+        id: 'package:db-development-guidelines',
+        category: 'packages',
+        label: 'DB開発指針',
+        path: '_prompts/packages/db_development_guidelines.md',
+        trigger: 'db',
+      },
+    ],
+  },
 }, {
   // aiName は path 系ではないので pathKeys に含めない (path.resolve すると壊れる)
   pathKeys: ['root', 'nodeExe', 'bomFixerPath', 'logDir'],

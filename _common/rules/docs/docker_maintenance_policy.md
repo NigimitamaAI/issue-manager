@@ -192,3 +192,12 @@ docker compose down -v --rmi local
 
 - `docker_shared_traefik_policy.md`: 共有 Traefik プロキシ運用とトラブルシュート
 - `git_public_private_policy.md`: Docker 関連ファイル (compose.yml, Dockerfile, .dockerignore) の公開/非公開判断
+
+## 関連実装
+
+このポリシーを根拠に Docker 確認環境や容量案内を変更する場合は、文書だけで判断せず次の実装も確認する。
+
+- `open/preview-lane/routes.mjs`: Docker 環境メタデータ、compose 解決、AI 向けプロンプト生成
+- `open/preview-lane/assets/preview-lane.js`: テスト確認 UI、危険操作の表示・非表示
+- `lib/shared-config.mjs`: 共有 Docker / Traefik ルート解決
+- `_share/docker/catalog.json`: 共有 Docker 環境カタログ

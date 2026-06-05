@@ -160,6 +160,11 @@ const api = {
     if (!r.ok) throw await r.json()
     return r.json()
   },
+  async assistantPrompts() {
+    const r = await fetch('/api/assistant-prompts')
+    if (!r.ok) throw await r.json()
+    return r.json()
+  },
 }
 
 const state = {
@@ -169,6 +174,7 @@ const state = {
   activeTicket: null,
   showArchive: false,
   serverInfo: null,
+  assistantPrompts: null,
   roots: [],
   activeRootId: null,
 }
@@ -407,6 +413,11 @@ async function init() {
     toast('サーバー接続失敗: ' + e.message, 'err')
     return
   }
+  try {
+    state.assistantPrompts = await api.assistantPrompts()
+  } catch (_) {
+    state.assistantPrompts = null
+  }
   await loadEnterpriseExtensions()
   await loadProjects()
 
@@ -427,6 +438,7 @@ async function init() {
   $('#btn-detail-reload').onclick = reloadActiveTicket
   $('#btn-detail-link').onclick = copyDeepLinkForActiveTicket
   $('#btn-detail-resume').onclick = copyResumePromptForActiveTicket
+  $('#btn-detail-prompts').onclick = assistantPromptDialogForActiveTicket
   $('#btn-detail-archive').onclick = archiveActiveTicket
   $('#btn-detail-unarchive').onclick = unarchiveActiveTicket
   $('#btn-detail-delete').onclick = deleteActiveTicket
@@ -1270,6 +1282,22 @@ async function newTicketDialog() {
   )
 
   const today = todayCompact()
+  const promptItems = enabledAssistantPromptItems()
+  const defaultPromptIds = new Set((state.assistantPrompts && Array.isArray(state.assistantPrompts.projectPromptIds))
+    ? state.assistantPrompts.projectPromptIds
+    : [])
+  const promptBox = promptItems.length ? el('div', { class: 'assistant-prompt-picker' },
+    el('div', { class: 'assistant-prompt-picker-title', text: '開発補助プロンプト' }),
+    ...promptItems.map(item => el('label', { class: 'assistant-prompt-option' },
+      el('input', {
+        type: 'checkbox',
+        value: item.id,
+        checked: defaultPromptIds.has(item.id),
+      }),
+      el('span', { text: item.label || item.id }),
+      el('code', { text: item.category || '' })
+    ))
+  ) : null
   const form = el('div', {},
     el('label', { text: '配置レーン' }),
     el('select', { id: 'new-tic-lane', style: 'margin-bottom:8px' },
@@ -1280,6 +1308,7 @@ async function newTicketDialog() {
     el('label', { text: 'ファイル名（.md 必須、例: ' + today + '_P2_実装_新機能.md）' }),
     el('input', { id: 'new-tic-name', value: today + '_P2_.md' }),
     el('label', { text: '内容（TICKET_TEMPLATE.md がベース）' }),
+    promptBox,
     toolbar,
     idPanel,
     el('textarea', { id: 'new-tic-body' }, tplContent)
@@ -1379,7 +1408,10 @@ async function newTicketDialog() {
   if (!ok) return
   const lane = form.querySelector('#new-tic-lane').value
   const filename = form.querySelector('#new-tic-name').value.trim()
-  const content = form.querySelector('#new-tic-body').value
+  const selectedPromptIds = promptBox
+    ? $all('.assistant-prompt-option input:checked', promptBox).map(input => input.value)
+    : []
+  const content = injectAssistantPromptIds(form.querySelector('#new-tic-body').value, selectedPromptIds)
   if (!filename.endsWith('.md')) {
     toast('ファイル名は .md で終わる必要があります', 'err')
     return
@@ -1686,11 +1718,16 @@ async function buildAiSessionHistorySection(projectName) {
 function buildCommonRulesSection(project) {
   const common = project && project.commonRules
   if (!common || !common.exists) return ''
+  const sep = common.rulesPath && common.rulesPath.includes('/') ? '/' : '\\'
+  const operationPath = common.rulesDir ? common.rulesDir + sep + 'AI_OPERATION.md' : ''
+  const promptPath = common.rulesDir ? common.rulesDir + sep + 'prompts' + sep + 'initial_or_resume.md' : ''
   const lines = [
     '## 共通運用ルール',
     'プロジェクト固有ルールの前に、以下の共通ルールを読んでください。',
     '- ' + common.rulesPath,
   ]
+  if (operationPath) lines.push('- ' + operationPath)
+  if (promptPath) lines.push('- ' + promptPath)
   for (const doc of common.docs || []) lines.push('- ' + doc)
   lines.push('')
   return lines.join('\n')
@@ -1732,6 +1769,164 @@ async function buildExtensionRulesSection() {
   }
 }
 
+function escapeRegExp(s) {
+  return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function assistantPromptMatch(ticket, prompts) {
+  if (!ticket || !prompts || !prompts.triggers) return null
+  const target = [
+    ticket.file || '',
+    ticket.title || '',
+    ticket.content || '',
+  ].join('\n')
+  for (const [key, words] of Object.entries(prompts.triggers || {})) {
+    for (const word of words || []) {
+      const w = String(word || '').trim()
+      if (!w) continue
+      const asciiWord = /^[A-Za-z0-9_]+$/.test(w)
+      const pattern = asciiWord
+        ? new RegExp('(^|[^A-Za-z0-9_])' + escapeRegExp(w) + '([^A-Za-z0-9_]|$)', 'i')
+        : new RegExp(escapeRegExp(w), 'i')
+      if (pattern.test(target)) return { key, word: w }
+    }
+  }
+  return null
+}
+
+function assistantPromptMap() {
+  const prompts = state.assistantPrompts
+  const map = new Map()
+  for (const item of (prompts && Array.isArray(prompts.prompts) ? prompts.prompts : [])) {
+    if (item && item.id) map.set(item.id, item)
+  }
+  return map
+}
+
+function enabledAssistantPromptItems() {
+  const prompts = state.assistantPrompts
+  if (!prompts || prompts.enabled !== true) return []
+  const items = Array.isArray(prompts.prompts) ? prompts.prompts : []
+  const enabledIds = Array.isArray(prompts.enabledPromptIds) ? prompts.enabledPromptIds : []
+  if (!enabledIds.length) return items
+  const enabledSet = new Set(enabledIds)
+  return items.filter(item => item && enabledSet.has(item.id))
+}
+
+function explicitAssistantPromptIds(ticket) {
+  if (!ticket || !ticket.content) return []
+  const match = String(ticket.content).match(/^\s*-\s*assistantPromptIds:\s*(.+)$/mi)
+  if (!match) return []
+  return match[1].split(/[,\s]+/).map(s => s.trim()).filter(Boolean)
+}
+
+function selectedAssistantPromptItems(ticket) {
+  const prompts = state.assistantPrompts
+  if (!prompts || prompts.enabled !== true) return []
+  const map = assistantPromptMap()
+  let ids = explicitAssistantPromptIds(ticket)
+  const match = assistantPromptMatch(ticket, prompts)
+  if (!ids.length && ticket && match && prompts.ticketPromptDefaults) {
+    ids = Array.isArray(prompts.ticketPromptDefaults[match.key]) ? prompts.ticketPromptDefaults[match.key] : []
+  }
+  if (!ids.length && !ticket && Array.isArray(prompts.projectPromptIds)) {
+    ids = prompts.projectPromptIds
+  }
+  return ids.map(id => map.get(id)).filter(Boolean)
+}
+
+function buildAssistantPromptsSection(ticket) {
+  const prompts = state.assistantPrompts
+  if (!prompts || prompts.enabled !== true) return ''
+  const items = selectedAssistantPromptItems(ticket)
+  if (!items.length) return ''
+
+  const lines = [
+    '## 開発補助プロンプト',
+    '開発補助プロンプトがONです。既存の共通ルール・プロジェクト固有RULES・チケット本文は上書きせず、追加で読むべき開発指針として扱ってください。',
+  ]
+  const match = assistantPromptMatch(ticket, prompts)
+  if (ticket) {
+    const explicitIds = explicitAssistantPromptIds(ticket)
+    if (explicitIds.length) {
+      lines.push('このチケットで明示された補助プロンプトを読んでください。')
+    } else if (match) {
+      lines.push(`このチケットは補助プロンプトのトリガー \`${match.key}\`（検出語: \`${match.word}\`）に一致しています。`)
+    }
+  } else {
+    lines.push('プロジェクト既定で有効な補助プロンプトを先に読んでください。')
+  }
+  for (const item of items) {
+    const label = item.label || item.id
+    const location = item.path || item.labelPath || ''
+    lines.push('- ' + label + (location ? ': ' + location : '') + ' (`' + item.id + '`)')
+  }
+  lines.push('')
+  return lines.join('\n')
+}
+
+function injectAssistantPromptIds(content, ids) {
+  const cleanIds = Array.from(new Set((ids || []).map(id => String(id || '').trim()).filter(Boolean)))
+  if (!cleanIds.length) {
+    return content.replace(/^\s*-\s*assistantPromptIds:\s*.*\r?\n?/mi, '')
+  }
+  const line = '- assistantPromptIds: ' + cleanIds.join(', ')
+  if (/^\s*-\s*assistantPromptIds:\s*.*$/mi.test(content)) {
+    return content.replace(/^\s*-\s*assistantPromptIds:\s*.*$/mi, line)
+  }
+  if (/^# .+\r?\n/.test(content)) {
+    return content.replace(/^(# .+\r?\n)/, '$1' + line + '\n')
+  }
+  return line + '\n' + content
+}
+
+async function assistantPromptDialogForActiveTicket() {
+  const t = state.activeTicket
+  if (!t) return
+  const items = enabledAssistantPromptItems()
+  if (!items.length) {
+    toast('利用可能な補助プロンプトがありません', 'err')
+    return
+  }
+  const explicitIds = explicitAssistantPromptIds(t)
+  const checkedIds = new Set(explicitIds.length
+    ? explicitIds
+    : selectedAssistantPromptItems(t).map(item => item.id))
+  const body = el('div', { class: 'assistant-prompt-picker' },
+    el('div', { class: 'assistant-prompt-picker-title', text: 'このチケットに紐づける補助プロンプト' }),
+    ...items.map(item => el('label', { class: 'assistant-prompt-option' },
+      el('input', {
+        type: 'checkbox',
+        value: item.id,
+        checked: checkedIds.has(item.id),
+      }),
+      el('span', { text: item.label || item.id }),
+      el('code', { text: item.category || '' })
+    ))
+  )
+  const ok = await modal({
+    title: '補助プロンプト',
+    body,
+    actions: [
+      { label: 'キャンセル', value: null },
+      { label: '保存', value: true, class: 'primary' },
+    ],
+  })
+  if (!ok) return
+  const selectedIds = $all('.assistant-prompt-option input:checked', body).map(input => input.value)
+  const content = injectAssistantPromptIds(t.content || '', selectedIds)
+  try {
+    const res = await api.writeTicket(state.activeProject, t.lane, t.file, content, t.mtime)
+    t.content = content
+    t.mtime = res.mtime
+    renderDetail()
+    await loadTickets(state.activeProject)
+    toast('補助プロンプトを保存しました', 'ok')
+  } catch (e) {
+    toast('保存失敗: ' + (e.error || e.message), 'err')
+  }
+}
+
 async function copyToClipboard(text) {
   try {
     await navigator.clipboard.writeText(text)
@@ -1760,23 +1955,27 @@ async function copyResumePromptForProject() {
   const tp = projectTicketsPath(projName, proj ? proj.layout : 'new', proj && proj.rootPath)
   const commonRules = buildCommonRulesSection(proj)
   const extensionRules = await buildExtensionRulesSection()
+  const assistantPrompts = buildAssistantPromptsSection()
   const aiHistory = await buildAiSessionHistorySection(state.activeProject)
   const prompt = [
     commonRules,
     extensionRules,
+    assistantPrompts,
     buildReviewPromptGuidance(),
     tp + ' の RULES.md と INDEX.md を読んでください。',
-    'セッションを再開します。',
+    '初回／再開プロンプトとして、チケット状況を見て分岐します。',
     '',
     '手順:',
-    '1. RULES.md で運用ルールを把握',
-    '2. INDEX.md の「推奨実行順」と doing/ の状況を確認',
+    '1. ブロックA: RULES.md、INDEX.md、AI_OPERATION.md で運用ルールと確認義務トリガーを把握',
+    '2. ブロックB: review/、doing/、todo/、inbox/ の状況を確認',
     '3. review/ にチケットがあれば、ユーザーの返信確認・判定反映を優先。',
     '4. doing/ にチケットがあればそれを読んで作業再開。',
-    '   なければ todo/ から次のチケットを選んで doing/ に移動して開始。',
-    '5. 作業中に思いついたアイデア・課題は inbox/ に起票。',
+    '5. doing/ がなければ todo/ から次のチケットを選んで doing/ に移動して開始。',
+    '   チケット自体がない相談なら、用件を整理して inbox/ または doing/ に起票してから進める。',
+    '6. 作業対象が AI_OPERATION.md の確認義務トリガーに該当する場合は、関連実装も読む。',
+    '7. 作業中に思いついたアイデア・課題は inbox/ に起票。',
     '   Claude提案・Claude推奨などラベルをタイトルまたは本文に明記。',
-    '6. セッション終了時は作業ログのサマリ欄に成果を1行追加、',
+    '8. セッション終了時は作業ログのサマリ欄に成果を1行追加、',
     '   詳細ログに今回のやり取りを原文追記、引継ぎメモを 1-3 行で記載。',
     '',
     aiHistory
@@ -1803,9 +2002,11 @@ async function copyResumePromptForActiveTicket() {
   const ticketPath = [tp, t.lane, t.file].join(sep)
   const commonRules = buildCommonRulesSection(proj)
   const extensionRules = await buildExtensionRulesSection()
+  const assistantPrompts = buildAssistantPromptsSection(t)
   const prompt = [
     commonRules,
     extensionRules,
+    assistantPrompts,
     buildReviewPromptGuidance(t),
     tp + ' の RULES.md を読んだ後、以下のチケットを開いて作業を再開してください。',
     '',
@@ -1813,12 +2014,13 @@ async function copyResumePromptForActiveTicket() {
     'タイトル: ' + (t.title || ''),
     '',
     '手順:',
-    '1. RULES.md で運用ルールを把握',
+    '1. RULES.md と AI_OPERATION.md で運用ルールと確認義務トリガーを把握',
     '2. 上記チケットを読んで現状を確認（作業ログのサマリ欄と引継ぎメモを中心に）',
     '3. このチケットが review/ の場合は、レビュー欄のユーザー返信と判定を確認し、approved/needs_fix/rejected に応じて処理',
     '4. review/ 以外の場合は、未完了の完了条件から作業を続行',
     '5. このチケットが todo のままなら doing/ へ移動してから開始',
-    '6. セッション終了時はサマリ1行・詳細ログ原文・引継ぎメモを書き続ける',
+    '6. 作業対象が AI_OPERATION.md の確認義務トリガーに該当する場合は、関連実装も読む',
+    '7. セッション終了時はサマリ1行・詳細ログ原文・引継ぎメモを書き続ける',
     ''
   ].join('\n')
   const ok = await copyToClipboard(prompt)

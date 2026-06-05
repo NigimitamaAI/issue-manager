@@ -934,6 +934,37 @@ body {
   border-color: var(--accent);
   color: var(--on-accent);
 }
+.assistant-prompt-picker {
+  margin: 0 0 8px;
+  padding: 7px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface-2);
+}
+.assistant-prompt-picker-title {
+  margin-bottom: 5px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.assistant-prompt-option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 7px;
+  align-items: center;
+  margin: 3px 0;
+  font-size: 12px;
+}
+.assistant-prompt-option input {
+  margin: 0;
+}
+.assistant-prompt-option span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.assistant-prompt-option code {
+  font-size: 10px;
+  color: var(--muted);
+}
 #modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
 #modal-actions button {
   padding: 6px 16px;

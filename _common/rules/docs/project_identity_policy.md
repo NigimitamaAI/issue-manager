@@ -75,3 +75,12 @@ issue_manager や Enterprise 拡張は、フォルダ名だけで対象を判断
 - フォルダ名だけで実行対象を確定しない。
 - manifest の command を shell 文字列として連結実行しない。
 - capability がない処理を推測で実行しない。
+
+## 関連実装
+
+このポリシーを根拠に `.issuemgr/app.json` やプロジェクト検出を変更する場合は、文書だけで判断せず次の実装も確認する。
+
+- `lib/projects.mjs`: プロジェクト検出、manifest 読み取り、dockerPolicy 取得
+- `lib/scaffold.mjs`: 新規プロジェクト作成時の `.issuemgr/project.json` 生成
+- `lib/routes.mjs`: `/api/app-manifests`、プロジェクト import / manifest API
+- `core/public-assets/app.js`: プロジェクト情報 UI、再開プロンプト生成

@@ -150,35 +150,51 @@ DBに負荷がかかる可能性があるため、先に投入計画を作りま
 この計画を文書化してから、実行に進みます。
 ```
 
-## issue_managerへの組み込み案
+## issue_managerへの組み込み
 
-開発補助プロンプト機能を設ける場合、以下の仕様を推奨する。
+この文書は issue_manager 同梱のパッケージ補助プロンプトとして、`_prompts/packages/` から参照する。
+`docs/` は仕様書置き場として扱い、補助プロンプト本文は `_prompts/` 配下に置く。
 
-- 設定で開発補助プロンプトをON/OFFできる
-- ONのとき、AI向けセッション開始プロンプトまたはチケット読込時プロンプトに補助ドキュメント参照を差し込む
+開発補助プロンプト機能では、以下の仕様を採用する。
+
+- 設定で開発補助プロンプトカタログと選択UIを有効化できる
+- 有効化時も、未選択の補助プロンプトはAI向けセッション開始プロンプトまたはチケット読込時プロンプトへ差し込まない
 - DB関連語を含むチケットでは、この文書を読むように促す
 - 参照する文書パスを設定で拡張できる
 - 既存プロジェクト固有RULESを上書きせず、補助文書として追加参照する
 
-想定設定例:
+設定例:
 
 ```json
 {
   "assistantPrompts": {
     "enabled": true,
-    "docs": [
-      "docs/db_development_guidelines.md"
+    "enabledPromptIds": [
+      "package:db-development-guidelines"
     ],
-    "triggers": {
-      "db": ["DB", "database", "SQLite", "Neo4j", "PostgreSQL", "MySQL", "migration", "import", "index"]
+    "projectPromptIds": [
+      "package:db-development-guidelines"
+    ],
+    "ticketPromptDefaults": {
+      "db": ["package:db-development-guidelines"]
     }
   }
 }
 ```
 
+`enabled` は補助プロンプトカタログと選択UIを有効化する。
+`enabled` が `true` でも、未選択の補助プロンプトは再開プロンプトへ差し込まない。
+`enabledPromptIds` は全体で利用可能な補助プロンプトを制限する。
+`projectPromptIds` はプロジェクト再開プロンプトへ既定で差し込む補助プロンプトを指定する。
+`ticketPromptDefaults` はトリガー種別ごとのチケット初期選択候補を指定する。
+チケット本文に `- assistantPromptIds: package:db-development-guidelines` を書くと、キーワード一致に依存せず明示的に補助プロンプトを差し込める。
+新規チケット作成時は、パッケージ補助プロンプトとユーザー定義補助プロンプトをチェックボックスで選択し、選択結果をチケット本文へ保存する。
+
+再開プロンプトへの差し込み順は、共通ルール、拡張機能ルール、補助プロンプト、review/返信確認ルール、対象チケット手順の順とする。
+
 差し込み文例:
 
 ```text
 開発補助プロンプトがONです。
-DB操作、データ投入、マイグレーション、インデックス作成を扱う場合は、先に docs/db_development_guidelines.md を読み、負荷を抑えた投入計画・実行計画確認・検証手順を提案してください。
+DB操作、データ投入、マイグレーション、インデックス作成を扱う場合は、先に _prompts/packages/db_development_guidelines.md を読み、負荷を抑えた投入計画・実行計画確認・検証手順を提案してください。
 ```

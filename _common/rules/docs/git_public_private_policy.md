@@ -94,3 +94,12 @@ git -C G:\codex\issue_manager\_private status --short
 
 運用版だけに変更を置くと、開発版から同期したときに消える。
 重要な変更は、GitHub 連携している開発版に先に入れる。
+
+## 関連実装
+
+このポリシーを根拠に公開/非公開境界や拡張配置を変更する場合は、文書だけで判断せず次の実装も確認する。
+
+- `.gitignore`: `enterprise/`、`_private/`、生成物の除外状態
+- `lib/routes.mjs`: open / enterprise 拡張の探索と静的配信
+- `lib/extension-api.mjs`: tier と license の整合検証
+- `config.example.json`: 公開してよい設定例

@@ -318,3 +318,13 @@ issue_manager 本体:
 - 固定 command と引数配列で実行する
 - manifest の path が provider project 内に収まることを確認する
 - capability、root、権限を実行前に検証する
+
+## 関連実装
+
+このポリシーを根拠に拡張機能を変更する場合は、文書だけで判断せず次の実装も確認する。
+
+- `lib/extension-api.mjs`: 標準 API、ライセンス検証、有効化判定
+- `lib/routes.mjs`: 拡張 manifest 探索、静的配信、`aiGuidance` 公開、起動時監査ログ
+- `enterprise/review-workflow/routes.mjs`: review-workflow 拡張 API
+- `enterprise/review-workflow/RULES.md`: review/ 返信確認運用
+- `open/preview-lane/routes.mjs`: open 拡張の Docker 確認 API 実装例
