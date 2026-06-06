@@ -1,6 +1,6 @@
-# 実装計画：開発環境パッケージ化とプレビューレーン機能の実装
+﻿# 実装計画：開発環境パッケージ化とテスト確認機能の実装
 
-複数プロジェクトの並行開発における確認環境・テスト環境の管理を簡単にするため、`issue_manager` のEnterprise拡張として「プレビューレーン」機能を実装します。また、VS Codeの開発環境をクリーンに保つための設定・ルールを定義します。
+複数プロジェクトの並行開発における確認環境・テスト環境の管理を簡単にするため、`issue_manager` のOpen拡張として「テスト確認」機能を実装します。また、VS Codeの開発環境をクリーンに保つための設定・ルールを定義します。
 
 ## ユーザーレビュー要求事項
 
@@ -11,39 +11,39 @@
 
 ## 提案される変更点
 
-### 1. Enterprise拡張機能 `preview-lane` の追加
+### 1. Open拡張機能 `test-environment` の追加
 
-新しく `enterprise/preview-lane/` ディレクトリを作成し、拡張機能として独立した構成を配置します。
+新しく `open/test-environment/` ディレクトリを作成し、拡張機能として独立した構成を配置します。
 
-#### [NEW] [extension.json](file:///G:/codex/issue_manager/enterprise/preview-lane/extension.json)
+#### [NEW] [extension.json](file:///G:/codex/issue_manager/open/test-environment/extension.json)
 拡張機能のマニフェストファイル。ID、名称、バージョン、必要な能力（capabilities）を定義します。
 
-#### [NEW] [routes.mjs](file:///G:/codex/issue_manager/enterprise/preview-lane/routes.mjs)
-プレビューレーン専用のAPIルートハンドラ。
-- `/api/project/:projectId/preview-lane/status`: `docker compose ps` による起動状況取得
-- `/api/project/:projectId/preview-lane/start`: `docker compose up -d` による環境起動
-- `/api/project/:projectId/preview-lane/stop`: `docker compose down` による環境停止
-- `/api/project/:projectId/preview-lane/open-folder`: `explorer.exe` によるプロジェクトフォルダ展開
+#### [NEW] [routes.mjs](file:///G:/codex/issue_manager/open/test-environment/routes.mjs)
+テスト確認専用のAPIルートハンドラ。
+- `/api/project/:projectId/test-environment/status`: `docker compose ps` による起動状況取得
+- `/api/project/:projectId/test-environment/start`: `docker compose up -d` による環境起動
+- `/api/project/:projectId/test-environment/stop`: `docker compose down` による環境停止
+- `/api/project/:projectId/test-environment/open-folder`: `explorer.exe` によるプロジェクトフォルダ展開
 
-#### [NEW] [preview-lane.js](file:///G:/codex/issue_manager/enterprise/preview-lane/assets/preview-lane.js)
+#### [NEW] [test-environment.js](file:///G:/codex/issue_manager/open/test-environment/assets/test-environment.js)
 フロントエンド側のUIロジック。ボタン押下時のAPI呼び出しや、コンテナ起動状態に応じたボタン表示の切り替え、利用説明書の表示を処理します。
 
-#### [NEW] [preview-lane.css](file:///G:/codex/issue_manager/enterprise/preview-lane/assets/preview-lane.css)
-プレビューレーン画面専用のスタイル定義。
+#### [NEW] [test-environment.css](file:///G:/codex/issue_manager/open/test-environment/assets/test-environment.css)
+テスト確認画面専用のスタイル定義。
 
 ---
 
 ### 2. `issue_manager` 本体への統合
 
 #### [MODIFY] [routes.mjs](file:///G:/codex/issue_manager/lib/routes.mjs)
-- `availableEnterpriseFeatures()` に `preview-lane` の検出ロジックを追加します。
-- `handleEnterpriseApi` にて `/preview-lane/` に対するリクエストを `enterprise/preview-lane/routes.mjs` にルーティングします。
+- `availableEnterpriseFeatures()` に `test-environment` の検出ロジックを追加します。
+- `handleEnterpriseApi` にて `/test-environment/` に対するリクエストを `open/test-environment/routes.mjs` にルーティングします。
 
 #### [MODIFY] [index.html](file:///G:/codex/issue_manager/public/index.html)
-- 画面上部に「プレビューレーン」タブ、あるいはプロジェクト詳細画面にプレビューレーン操作パネルを表示する領域を追加します。
+- 画面上部に「テスト確認」タブ、あるいはプロジェクト詳細画面にテスト確認操作パネルを表示する領域を追加します。
 
 #### [MODIFY] [app.js](file:///G:/codex/issue_manager/public/app.js)
-- `availableEnterpriseFeatures` を取得し、`preview-lane` が有効な場合にタブを表示し、画面遷移・HTMLの挿入を行います。
+- `availableEnterpriseFeatures` を取得し、`test-environment` が有効な場合にタブを表示し、画面遷移・HTMLの挿入を行います。
 
 ---
 
@@ -61,8 +61,10 @@
 
 ### 手動検証
 1. 開発環境（`G:\codex\issue_manager`）で `npm run start` もしくは `start.bat` を実行し、ポート 5181 でサーバーを起動します。
-2. ブラウザで管理画面にアクセスし、「プレビューレーン」タブが追加されていることを確認します。
-3. プレビューレーン画面で、ローカルにあるプロジェクト（`docker-compose.yml`があるもの）の起動ボタンを押し、コンテナが起動すること、ステータスが「起動中」に変わることを確認します。
+2. ブラウザで管理画面にアクセスし、「テスト確認」タブが追加されていることを確認します。
+3. テスト確認画面で、ローカルにあるプロジェクト（`docker-compose.yml`があるもの）の起動ボタンを押し、コンテナが起動すること、ステータスが「起動中」に変わることを確認します。
 4. 「フォルダを開く」ボタンを押し、Windowsのエクスプローラーでプロジェクトディレクトリが開くことを確認します。
 5. 停止ボタンを押し、コンテナが停止することを確認します。
 6. 画面内で利用説明書が正しく表示されることを確認します。
+
+

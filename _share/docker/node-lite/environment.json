@@ -9,7 +9,7 @@
   "image": "issue-manager/node-lite:1",
   "defaultInternalPort": 3000,
   "previewUrlTemplate": "http://<project-id>.localhost:8280/",
-  "previewTargets": [
+  "checkTargets": [
     {
       "id": "home",
       "label": "ホーム",

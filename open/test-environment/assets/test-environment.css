@@ -1,6 +1,6 @@
-/* preview-lane CSS styles for Issue Manager Enterprise */
+﻿/* test-environment CSS styles for Issue Manager Open extension */
 
-.preview-lane-container {
+.test-environment-container {
   display: flex;
   flex-direction: column;
   gap: 24px;
@@ -362,7 +362,7 @@
 }
 
 @media (max-width: 520px) {
-  .preview-lane-container {
+  .test-environment-container {
     width: 100%;
     gap: 16px;
   }
@@ -392,3 +392,5 @@
     font-size: 0.92rem;
   }
 }
+
+

@@ -1,4 +1,4 @@
-# Docker 共有 Traefik プロキシ運用ポリシー
+﻿# Docker 共有 Traefik プロキシ運用ポリシー
 
 作成日: 2026-06-01
 更新日: 2026-06-01（ホスト側ポート 8280、PowerShell `curl.exe` 表記、`traefik.docker.network` ラベル必須化、トラブルシュート追加）
@@ -285,6 +285,7 @@ docker run --rm --network traefik curlimages/curl:latest -s -o /dev/null -w "%{h
 このポリシーを根拠に Traefik や Docker 環境を変更する場合は、文書だけで判断せず次の実装も確認する。
 
 - `lib/shared-config.mjs`: `config.shared` と共有ルートの正規化
-- `open/preview-lane/routes.mjs`: 環境別 compose 解決、確認 URL、AI 向けプロンプト生成
+- `open/test-environment/routes.mjs`: 環境別 compose 解決、確認 URL、AI 向けプロンプト生成
 - `_share/traefik/docker-compose.yml`: 共有 Traefik 本体の実設定
 - `_share/docker/catalog.json`: 共有環境カタログとテンプレート参照
+

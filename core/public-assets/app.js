@@ -10,6 +10,28 @@ const api = {
   async ping() {
     const r = await fetch('/api/ping'); return r.json()
   },
+  async refreshToken() {
+    const ping = await this.ping()
+    this.token = ping.apiToken || ''
+    return ping
+  },
+  async jsonRequest(url, options = {}, retry = true) {
+    const r = await fetch(url, {
+      ...options,
+      headers: {
+        ...this.jsonHeaders(),
+        ...(options.headers || {}),
+      },
+    })
+    if (r.ok) return r.json()
+    let error
+    try { error = await r.json() } catch (_) { error = { error: r.statusText || 'request failed' } }
+    if (retry && r.status === 403 && /API token/i.test(error.error || error.message || '')) {
+      await this.refreshToken()
+      return this.jsonRequest(url, options, false)
+    }
+    throw error
+  },
   async aiStates(name) {
     const r = await fetch('/api/projects/' + encodeURIComponent(name) + '/ai-state')
     if (!r.ok) throw await r.json()
@@ -49,12 +71,10 @@ const api = {
     return r.json()
   },
   async addRoot(payload) {
-    const r = await fetch('/api/roots', {
-      method: 'POST', headers: api.jsonHeaders(),
+    return api.jsonRequest('/api/roots', {
+      method: 'POST',
       body: JSON.stringify(payload)
     })
-    if (!r.ok) throw await r.json()
-    return r.json()
   },
   async tickets(name) {
     const r = await fetch('/api/projects/' + encodeURIComponent(name) + '/tickets'); return r.json()
@@ -65,95 +85,73 @@ const api = {
     return r.json()
   },
   async writeTicket(name, lane, file, content, expectedMtime) {
-    const r = await fetch('/api/projects/' + encodeURIComponent(name) + '/ticket/' + encodeURIComponent(lane) + '/' + encodeURIComponent(file), {
-      method: 'PUT', headers: api.jsonHeaders(),
+    return api.jsonRequest('/api/projects/' + encodeURIComponent(name) + '/ticket/' + encodeURIComponent(lane) + '/' + encodeURIComponent(file), {
+      method: 'PUT',
       body: JSON.stringify({ content, expectedMtime })
     })
-    if (!r.ok) throw await r.json()
-    return r.json()
   },
   async moveTicket(name, fromLane, file, toLane, expectedMtime) {
-    const r = await fetch('/api/projects/' + encodeURIComponent(name) + '/ticket/' + encodeURIComponent(fromLane) + '/' + encodeURIComponent(file) + '/move', {
-      method: 'POST', headers: api.jsonHeaders(),
+    return api.jsonRequest('/api/projects/' + encodeURIComponent(name) + '/ticket/' + encodeURIComponent(fromLane) + '/' + encodeURIComponent(file) + '/move', {
+      method: 'POST',
       body: JSON.stringify({ toLane, expectedMtime })
     })
-    if (!r.ok) throw await r.json()
-    return r.json()
   },
   async deleteTicket(name, lane, file, expectedMtime) {
-    const r = await fetch('/api/projects/' + encodeURIComponent(name) + '/ticket/' + encodeURIComponent(lane) + '/' + encodeURIComponent(file), {
-      method: 'DELETE', headers: api.jsonHeaders(),
+    return api.jsonRequest('/api/projects/' + encodeURIComponent(name) + '/ticket/' + encodeURIComponent(lane) + '/' + encodeURIComponent(file), {
+      method: 'DELETE',
       body: JSON.stringify({ expectedMtime })
     })
-    if (!r.ok) throw await r.json()
-    return r.json()
   },
   async archiveTicket(name, fromLane, file, expectedMtime) {
-    const r = await fetch('/api/projects/' + encodeURIComponent(name) + '/ticket/' + encodeURIComponent(fromLane) + '/' + encodeURIComponent(file) + '/archive', {
-      method: 'POST', headers: api.jsonHeaders(),
+    return api.jsonRequest('/api/projects/' + encodeURIComponent(name) + '/ticket/' + encodeURIComponent(fromLane) + '/' + encodeURIComponent(file) + '/archive', {
+      method: 'POST',
       body: JSON.stringify({ expectedMtime })
     })
-    if (!r.ok) throw await r.json()
-    return r.json()
   },
   async unarchiveTicket(name, file, expectedMtime) {
-    const r = await fetch('/api/projects/' + encodeURIComponent(name) + '/ticket/archive/' + encodeURIComponent(file) + '/unarchive', {
-      method: 'POST', headers: api.jsonHeaders(),
+    return api.jsonRequest('/api/projects/' + encodeURIComponent(name) + '/ticket/archive/' + encodeURIComponent(file) + '/unarchive', {
+      method: 'POST',
       body: JSON.stringify({ expectedMtime })
     })
-    if (!r.ok) throw await r.json()
-    return r.json()
   },
   async createTicket(name, filename, content, lane) {
-    const r = await fetch('/api/projects/' + encodeURIComponent(name) + '/ticket', {
-      method: 'POST', headers: api.jsonHeaders(),
+    return api.jsonRequest('/api/projects/' + encodeURIComponent(name) + '/ticket', {
+      method: 'POST',
       body: JSON.stringify({ filename, content, lane: lane || 'todo' })
     })
-    if (!r.ok) throw await r.json()
-    return r.json()
   },
   async getMeta(name, kind) {
     const r = await fetch('/api/projects/' + encodeURIComponent(name) + '/meta/' + kind); return r.json()
   },
   async newProject(name, rootId, parentPath) {
-    const r = await fetch('/api/projects/new', {
-      method: 'POST', headers: api.jsonHeaders(),
+    return api.jsonRequest('/api/projects/new', {
+      method: 'POST',
       body: JSON.stringify({ name, rootId, parentPath: parentPath || '' })
     })
-    if (!r.ok) throw await r.json()
-    return r.json()
   },
   async importProject(rootId, path) {
-    const r = await fetch('/api/projects/import', {
-      method: 'POST', headers: api.jsonHeaders(),
+    return api.jsonRequest('/api/projects/import', {
+      method: 'POST',
       body: JSON.stringify({ rootId, path: path || '' })
     })
-    if (!r.ok) throw await r.json()
-    return r.json()
   },
   async migrate(name) {
-    const r = await fetch('/api/projects/' + encodeURIComponent(name) + '/migrate', {
-      method: 'POST', headers: api.jsonHeaders(),
+    return api.jsonRequest('/api/projects/' + encodeURIComponent(name) + '/migrate', {
+      method: 'POST',
       body: '{}'
     })
-    if (!r.ok) throw await r.json()
-    return r.json()
   },
   async unregisterProject(name, mode) {
-    const r = await fetch('/api/projects/' + encodeURIComponent(name) + '/unregister', {
-      method: 'POST', headers: api.jsonHeaders(),
+    return api.jsonRequest('/api/projects/' + encodeURIComponent(name) + '/unregister', {
+      method: 'POST',
       body: JSON.stringify({ mode })
     })
-    if (!r.ok) throw await r.json()
-    return r.json()
   },
   async openExternal(name, payload) {
-    const r = await fetch('/api/projects/' + encodeURIComponent(name) + '/open', {
-      method: 'POST', headers: api.jsonHeaders(),
+    return api.jsonRequest('/api/projects/' + encodeURIComponent(name) + '/open', {
+      method: 'POST',
       body: JSON.stringify(payload)
     })
-    if (!r.ok) throw await r.json()
-    return r.json()
   },
   async enterpriseFeatures() {
     const r = await fetch('/api/enterprise/features')
@@ -482,13 +480,49 @@ async function loadProjects() {
   }
 }
 
-async function selectProject(name) {
+function projectInternalId(p) {
+  return p ? (p.id || p.name) : ''
+}
+
+function projectUrlId(p) {
+  return p ? (p.shortId || projectInternalId(p)) : ''
+}
+
+function findProjectByInternalId(id) {
+  return state.projects.find(p => projectInternalId(p) === id) || null
+}
+
+function safeDecodeProjectRef(ref) {
+  try {
+    return decodeURIComponent(ref)
+  } catch (_) {
+    return ref
+  }
+}
+
+function resolveProjectRef(ref) {
+  if (!ref) return null
+  const decodedRef = safeDecodeProjectRef(ref)
+  return state.projects.find(p => p.shortId && p.shortId === ref)
+    || state.projects.find(p => {
+      const internalId = projectInternalId(p)
+      return internalId === ref
+        || internalId === decodedRef
+        || safeDecodeProjectRef(internalId) === ref
+        || safeDecodeProjectRef(internalId) === decodedRef
+        || p.name === ref
+        || p.name === decodedRef
+    })
+    || null
+}
+
+async function selectProject(name, opts = {}) {
   state.activeProject = name
   state.activeTicket = null
   document.querySelectorAll('#project-list li').forEach(li => {
     li.classList.toggle('active', li.dataset.id === name)
   })
-  const proj = state.projects.find(p => (p.id || p.name) === name)
+  const proj = findProjectByInternalId(name)
   const title = proj.projectName || name
   $('#kanban-title').textContent = title + (proj.layout === 'legacy' ? '（旧構造）' : '')
   $('#btn-open-index').disabled = false
@@ -501,6 +535,7 @@ async function selectProject(name) {
   $('#btn-unregister-project').disabled = false
   $('#btn-export').disabled = false
   $('#btn-migrate').style.display = proj.layout === 'legacy' ? '' : 'none'
+  if (opts.updateUrl !== false) updateProjectUrl()
   await loadTickets(name)
   notifyEnterpriseExtensions('projectSelected')
 }
@@ -822,11 +857,23 @@ function currentVisibleSection() {
 function updateTicketUrl(section) {
   const t = state.activeTicket
   if (!t || !state.activeProject) return
+  const project = findProjectByInternalId(state.activeProject)
   const url = new URL(location.href)
-  url.searchParams.set('project', state.activeProject)
+  url.searchParams.set('project', projectUrlId(project) || state.activeProject)
   url.searchParams.set('lane', t.lane)
   url.searchParams.set('ticket', t.file)
   url.hash = section ? 'section=' + encodeURIComponent(section) : ''
+  history.replaceState(null, '', url)
+}
+
+function updateProjectUrl() {
+  if (!state.activeProject) return
+  const project = findProjectByInternalId(state.activeProject)
+  const url = new URL(location.href)
+  url.searchParams.set('project', projectUrlId(project) || state.activeProject)
+  url.searchParams.delete('lane')
+  url.searchParams.delete('ticket')
+  url.hash = ''
   history.replaceState(null, '', url)
 }
 
@@ -834,8 +881,9 @@ async function copyDeepLinkForActiveTicket(section = null) {
   const t = state.activeTicket
   if (!t) return
   const targetSection = section || currentVisibleSection()
+  const project = findProjectByInternalId(state.activeProject)
   const url = new URL(location.href)
-  url.searchParams.set('project', state.activeProject)
+  url.searchParams.set('project', projectUrlId(project) || state.activeProject)
   url.searchParams.set('lane', t.lane)
   url.searchParams.set('ticket', t.file)
   url.hash = targetSection ? 'section=' + encodeURIComponent(targetSection) : ''
@@ -860,14 +908,16 @@ function findTicketLane(file) {
 
 async function applyDeepLinkFromUrl() {
   const params = new URLSearchParams(location.search)
-  const projectId = params.get('project')
+  const projectRef = params.get('project')
   const ticket = params.get('ticket')
-  if (!projectId || !ticket) return
-  if (!state.projects.some(p => (p.id || p.name) === projectId)) return
-  await selectProject(projectId)
+  if (!projectRef) return
+  const project = resolveProjectRef(projectRef)
+  if (!project) return
+  await selectProject(projectInternalId(project), { updateUrl: !ticket })
+  if (!ticket) return
   const lane = params.get('lane') || findTicketLane(ticket)
   if (!lane) return
-  await selectTicket(lane, ticket, { section: sectionFromHash(), updateUrl: false })
+  await selectTicket(lane, ticket, { section: sectionFromHash() })
 }
 
 async function reloadActiveTicket() {

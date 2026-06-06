@@ -1,4 +1,4 @@
-# issue_manager Open Extensions
+﻿# issue_manager Open Extensions
 
 このディレクトリは、issue_manager の **公開拡張機能（Open Extensions）** の配置場所です。
 
@@ -28,7 +28,7 @@ issue_manager は以下の三層ライセンスで提供されます：
 
 ## 現在含まれている拡張
 
-- `preview-lane/`: Docker Compose ベースのプレビュー環境管理（起動/停止/状態表示、フォルダオープン、AI 向け定型プロンプトコピー）。元は `enterprise/preview-lane/` に存在したが、公開価値が高く商用機能ではないため `open/` に移管。
+- `test-environment/`: Docker Compose ベースのテスト確認環境管理（起動/停止/状態表示、フォルダオープン、AI 向け定型プロンプトコピー）。元は Enterprise 拡張として試作されたが、公開価値が高く商用機能ではないため `open/` に移管。
 
 ## 拡張の作り方
 
@@ -58,3 +58,4 @@ open/
 - [`../enterprise/README.md`](../enterprise/README.md) - Enterprise 拡張の説明
 - [`../_common/rules/docs/enterprise_extension_policy.md`](../_common/rules/docs/enterprise_extension_policy.md) - 拡張ポリシー
 - [`../_common/rules/docs/git_public_private_policy.md`](../_common/rules/docs/git_public_private_policy.md) - 公開/非公開分離ポリシー
+

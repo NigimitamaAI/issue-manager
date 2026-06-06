@@ -1,4 +1,4 @@
-import fs from 'node:fs'
+﻿import fs from 'node:fs'
 import fsp from 'node:fs/promises'
 import path from 'node:path'
 import { execFile } from 'node:child_process'
@@ -53,7 +53,7 @@ function expandProjectTemplate(value, project) {
     .replace(/\$\{IM_HOST\}/g, vars.projectHost)
 }
 
-function normalizePreviewTarget(raw, fallbackId, project) {
+function normalizeCheckTarget(raw, fallbackId, project) {
   if (!raw || typeof raw !== 'object') return null
   const id = String(raw.id || fallbackId || '').trim().replace(/[^A-Za-z0-9_-]/g, '-')
   const urlSource = typeof raw.url === 'string' ? raw.url : raw.urlTemplate
@@ -86,24 +86,24 @@ function normalizeCustomAction(raw, fallbackId) {
   }
 }
 
-function fallbackPreviewTargets(project) {
+function fallbackCheckTargets(project) {
   const host = defaultPreviewHost(project)
   return [{
     id: 'home',
-    label: 'プレビュー',
+    label: 'ホーム',
     url: `http://${host}:8280/`,
     kind: 'browser',
     primary: true,
   }]
 }
 
-function previewTargetsFromEnvironment(project, env) {
-  const rawTargets = env && Array.isArray(env.previewTargets) ? env.previewTargets : []
+function checkTargetsFromEnvironment(project, env) {
+  const rawTargets = env && Array.isArray(env.checkTargets) ? env.checkTargets : []
   const targets = rawTargets
-    .map((t, i) => normalizePreviewTarget(t, `target-${i + 1}`, project))
+    .map((t, i) => normalizeCheckTarget(t, `target-${i + 1}`, project))
     .filter(Boolean)
 
-  if (!targets.length) return fallbackPreviewTargets(project)
+  if (!targets.length) return fallbackCheckTargets(project)
   if (!targets.some(t => t.primary)) targets[0].primary = true
   return targets
 }
@@ -179,7 +179,7 @@ async function sharedEnvironmentCandidates(project, sharedConfig) {
       cost: merged.cost && typeof merged.cost === 'object' ? merged.cost : undefined,
       safety: merged.safety && typeof merged.safety === 'object' ? merged.safety : undefined,
       traefik: merged.traefik && typeof merged.traefik === 'object' ? merged.traefik : undefined,
-      previewTargets: previewTargetsFromEnvironment(project, merged),
+      checkTargets: checkTargetsFromEnvironment(project, merged),
     }
   }))
   return detailed.filter(Boolean)
@@ -195,9 +195,9 @@ async function mergeSharedEnvironment(sharedConfig, env) {
     ...env,
     source: 'shared',
     sharedEnvironmentId: shared.sharedEnvironmentId || sharedId,
-    previewTargets: Array.isArray(env.previewTargets) && env.previewTargets.length
-      ? env.previewTargets
-      : shared.previewTargets,
+    checkTargets: Array.isArray(env.checkTargets) && env.checkTargets.length
+      ? env.checkTargets
+      : shared.checkTargets,
     customActions: Array.isArray(env.customActions) && env.customActions.length
       ? env.customActions
       : shared.customActions,
@@ -221,6 +221,14 @@ function sanitizeEnvironmentId(envId) {
   return /^[A-Za-z0-9_-]+$/.test(id) ? id : ''
 }
 
+function sanitizeComposeName(value, fallback = 'project') {
+  const base = String(value || fallback)
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, '-')
+    .replace(/^-+|-+$/g, '') || fallback
+  return /^[a-z0-9]/.test(base) ? base : `p-${base}`
+}
+
 function isInsideOrSame(parent, child) {
   const p = path.resolve(parent)
   const c = path.resolve(child)
@@ -228,10 +236,10 @@ function isInsideOrSame(parent, child) {
   return rel === '' || (!!rel && !rel.startsWith('..') && !path.isAbsolute(rel))
 }
 
-async function previewTargetsForProject(project, sharedConfig) {
+async function checkTargetsForProject(project, sharedConfig) {
   const meta = await readProjectDockerMetadata(project)
   const env = await mergeSharedEnvironment(sharedConfig, selectEnvironmentMetadata(meta))
-  return previewTargetsFromEnvironment(project, env)
+  return checkTargetsFromEnvironment(project, env)
 }
 
 function environmentSummaryFromMetadata(project, env, meta) {
@@ -242,7 +250,7 @@ function environmentSummaryFromMetadata(project, env, meta) {
       name: 'default',
       source: composeFile ? 'project-compose' : 'not_configured',
       composeFile: composeFile ? path.basename(composeFile) : undefined,
-      previewTargets: fallbackPreviewTargets(project),
+      checkTargets: fallbackCheckTargets(project),
       customActions: [],
       default: true,
     }
@@ -265,7 +273,7 @@ function environmentSummaryFromMetadata(project, env, meta) {
     customActions: Array.isArray(env.customActions)
       ? env.customActions.map((a, i) => normalizeCustomAction(a, `action-${i + 1}`)).filter(Boolean)
       : [],
-    previewTargets: previewTargetsFromEnvironment(project, env),
+    checkTargets: checkTargetsFromEnvironment(project, env),
     default: String(env.id || 'default') === String(meta && meta.defaultEnvironment || 'default'),
   }
 }
@@ -343,8 +351,8 @@ function resolveComposeForEnvironment(project, environment, sharedConfig) {
       cwd: path.dirname(composeFile),
       argsPrefix: ['compose', '-f', composeFile],
       env: {
-        COMPOSE_PROJECT_NAME: `${String(project.id || project.name).replace(/[^A-Za-z0-9_-]/g, '-')}-${sharedId}`,
-        IM_PROJECT_ID: String(project.projectName || project.displayName || project.name || 'project').replace(/[^A-Za-z0-9_-]/g, '-'),
+        COMPOSE_PROJECT_NAME: `${sanitizeComposeName(project.id || project.name)}-${sanitizeComposeName(sharedId, 'env')}`,
+        IM_PROJECT_ID: sanitizeComposeName(project.projectName || project.displayName || project.name || 'project'),
         IM_HOST: defaultPreviewHost(project),
         IM_PROJECT_DIR: project.projectDir,
       },
@@ -454,9 +462,9 @@ function runComposeDetached(project, environment, action, logger, sharedConfig) 
     windowsHide: true,
   }, (error) => {
     if (error) {
-      logger.logErr(`[preview-lane] ${action} error on ${project.name}/${environment.id}: ${error.message}`)
+      logger.logErr(`[test-environment] ${action} error on ${project.name}/${environment.id}: ${error.message}`)
     } else {
-      logger.log(`[preview-lane] ${action} requested for ${project.name}/${environment.id}`)
+      logger.log(`[test-environment] ${action} requested for ${project.name}/${environment.id}`)
     }
   })
 }
@@ -473,7 +481,7 @@ async function resolveProjectEnvironment(getProject, projectId, rawEnvId, shared
   return { project, environment }
 }
 
-export async function handlePreviewLaneRoute({ req, res, pathname, method, projectId, helpers }) {
+export async function handleTestEnvironmentRoute({ req, res, pathname, method, projectId, helpers }) {
   const {
     sendJson,
     getProject,
@@ -483,7 +491,7 @@ export async function handlePreviewLaneRoute({ req, res, pathname, method, proje
     shared,
   } = helpers
 
-  if (pathname.endsWith('/preview-lane/environments') && method === 'GET') {
+  if (pathname.endsWith('/test-environment/environments') && method === 'GET') {
     const project = await getProject(projectId)
     if (!project) return sendJson(res, 404, { error: 'project not found' })
 
@@ -497,7 +505,7 @@ export async function handlePreviewLaneRoute({ req, res, pathname, method, proje
   }
 
   {
-    const m = pathname.match(/\/preview-lane\/environments\/([^/]+)\/(status|start|stop|restart|build)$/)
+    const m = pathname.match(/\/test-environment\/environments\/([^/]+)\/(status|start|stop|restart|build)$/)
     if (m) {
       const action = m[2]
       if ((action === 'status' && method !== 'GET') || (action !== 'status' && method !== 'POST')) return false
@@ -512,7 +520,7 @@ export async function handlePreviewLaneRoute({ req, res, pathname, method, proje
           return sendJson(res, 200, {
             ...result,
             environment,
-            previewTargets: environment.previewTargets || fallbackPreviewTargets(project),
+            checkTargets: environment.checkTargets || fallbackCheckTargets(project),
           })
         }
 
@@ -534,7 +542,7 @@ export async function handlePreviewLaneRoute({ req, res, pathname, method, proje
             status: 'error',
             containers: [],
             environment,
-            previewTargets: environment.previewTargets || fallbackPreviewTargets(project),
+            checkTargets: environment.checkTargets || fallbackCheckTargets(project),
             error: e.message,
             message: 'Dockerが起動していないか、コマンドの実行に失敗しました。'
           })
@@ -544,18 +552,18 @@ export async function handlePreviewLaneRoute({ req, res, pathname, method, proje
     }
   }
 
-  if (pathname.endsWith('/preview-lane/status') && method === 'GET') {
+  if (pathname.endsWith('/test-environment/status') && method === 'GET') {
     const project = await getProject(projectId)
     if (!project) return sendJson(res, 404, { error: 'project not found' })
 
-    const previewTargets = await previewTargetsForProject(project, shared)
+    const checkTargets = await checkTargetsForProject(project, shared)
     const environment = await dockerEnvironmentSummary(project, shared)
     try {
       const result = await composeStatus(project, environment, shared)
       return sendJson(res, 200, {
         ...result,
         environment,
-        previewTargets,
+        checkTargets,
       })
     } catch (e) {
       // dockerコマンド自体が失敗した場合（Docker未起動など）
@@ -563,14 +571,14 @@ export async function handlePreviewLaneRoute({ req, res, pathname, method, proje
         status: 'error',
         containers: [],
         environment,
-        previewTargets,
+        checkTargets,
         error: e.message,
         message: 'Dockerが起動していないか、コマンドの実行に失敗しました。'
       })
     }
   }
 
-  if (pathname.endsWith('/preview-lane/start') && method === 'POST') {
+  if (pathname.endsWith('/test-environment/start') && method === 'POST') {
     const project = await getProject(projectId)
     if (!project) return sendJson(res, 404, { error: 'project not found' })
 
@@ -583,7 +591,7 @@ export async function handlePreviewLaneRoute({ req, res, pathname, method, proje
     }
   }
 
-  if (pathname.endsWith('/preview-lane/stop') && method === 'POST') {
+  if (pathname.endsWith('/test-environment/stop') && method === 'POST') {
     const project = await getProject(projectId)
     if (!project) return sendJson(res, 404, { error: 'project not found' })
 
@@ -596,7 +604,7 @@ export async function handlePreviewLaneRoute({ req, res, pathname, method, proje
     }
   }
 
-  if (pathname.endsWith('/preview-lane/restart') && method === 'POST') {
+  if (pathname.endsWith('/test-environment/restart') && method === 'POST') {
     const project = await getProject(projectId)
     if (!project) return sendJson(res, 404, { error: 'project not found' })
 
@@ -609,7 +617,7 @@ export async function handlePreviewLaneRoute({ req, res, pathname, method, proje
     }
   }
 
-  if (pathname.endsWith('/preview-lane/build') && method === 'POST') {
+  if (pathname.endsWith('/test-environment/build') && method === 'POST') {
     const project = await getProject(projectId)
     if (!project) return sendJson(res, 404, { error: 'project not found' })
 
@@ -622,7 +630,7 @@ export async function handlePreviewLaneRoute({ req, res, pathname, method, proje
     }
   }
 
-  if (pathname.endsWith('/preview-lane/open-folder') && method === 'POST') {
+  if (pathname.endsWith('/test-environment/open-folder') && method === 'POST') {
     const project = await getProject(projectId)
     if (!project) return sendJson(res, 404, { error: 'project not found' })
 
@@ -639,3 +647,4 @@ export async function handlePreviewLaneRoute({ req, res, pathname, method, proje
 
   return false
 }
+

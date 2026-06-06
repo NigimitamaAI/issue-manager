@@ -9,7 +9,7 @@
   "image": "issue-manager/python-lite:1",
   "defaultInternalPort": 8000,
   "previewUrlTemplate": "http://<project-id>.localhost:8280/",
-  "previewTargets": [
+  "checkTargets": [
     {
       "id": "home",
       "label": "ホーム",

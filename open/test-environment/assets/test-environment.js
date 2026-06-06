@@ -1,4 +1,4 @@
-export async function registerIssueManagerExtension(ctx) {
+﻿export async function registerIssueManagerExtension(ctx) {
   const { api, state, el, modal, toast, mount } = ctx
   if (!mount && !ctx.laneMounts) return null
 
@@ -9,11 +9,11 @@ export async function registerIssueManagerExtension(ctx) {
   function ensureButton() {
     if (button) return button
     button = el('button', {
-      id: 'btn-preview-lane',
+      id: 'btn-test-environment',
       class: 'hdr-btn',
       disabled: true,
       text: '🚀 テスト確認',
-      onclick: () => previewLaneDialog(),
+      onclick: () => testEnvironmentDialog(),
     })
     return button
   }
@@ -21,21 +21,21 @@ export async function registerIssueManagerExtension(ctx) {
   // 独自APIの呼び出しヘルパー
   async function getEnvStatus(projectId, envId = '') {
     const suffix = envId
-      ? '/preview-lane/environments/' + encodeURIComponent(envId) + '/status'
-      : '/preview-lane/status'
+      ? '/test-environment/environments/' + encodeURIComponent(envId) + '/status'
+      : '/test-environment/status'
     const r = await fetch('/api/projects/' + encodeURIComponent(projectId) + suffix)
     if (!r.ok) throw await r.json()
     return r.json()
   }
 
   async function getEnvironments(projectId) {
-    const r = await fetch('/api/projects/' + encodeURIComponent(projectId) + '/preview-lane/environments')
+    const r = await fetch('/api/projects/' + encodeURIComponent(projectId) + '/test-environment/environments')
     if (!r.ok) throw await r.json()
     return r.json()
   }
 
   async function getEnvironmentStatus(projectId, envId) {
-    const r = await fetch('/api/projects/' + encodeURIComponent(projectId) + '/preview-lane/environments/' + encodeURIComponent(envId) + '/status')
+    const r = await fetch('/api/projects/' + encodeURIComponent(projectId) + '/test-environment/environments/' + encodeURIComponent(envId) + '/status')
     if (!r.ok) throw await r.json()
     return r.json()
   }
@@ -55,8 +55,8 @@ export async function registerIssueManagerExtension(ctx) {
 
   async function startEnv(projectId, envId = '') {
     const suffix = envId
-      ? '/preview-lane/environments/' + encodeURIComponent(envId) + '/start'
-      : '/preview-lane/start'
+      ? '/test-environment/environments/' + encodeURIComponent(envId) + '/start'
+      : '/test-environment/start'
     const r = await fetch('/api/projects/' + encodeURIComponent(projectId) + suffix, {
       method: 'POST',
       headers: api.jsonHeaders()
@@ -67,8 +67,8 @@ export async function registerIssueManagerExtension(ctx) {
 
   async function stopEnv(projectId, envId = '') {
     const suffix = envId
-      ? '/preview-lane/environments/' + encodeURIComponent(envId) + '/stop'
-      : '/preview-lane/stop'
+      ? '/test-environment/environments/' + encodeURIComponent(envId) + '/stop'
+      : '/test-environment/stop'
     const r = await fetch('/api/projects/' + encodeURIComponent(projectId) + suffix, {
       method: 'POST',
       headers: api.jsonHeaders()
@@ -79,8 +79,8 @@ export async function registerIssueManagerExtension(ctx) {
 
   async function restartEnv(projectId, envId = '') {
     const suffix = envId
-      ? '/preview-lane/environments/' + encodeURIComponent(envId) + '/restart'
-      : '/preview-lane/restart'
+      ? '/test-environment/environments/' + encodeURIComponent(envId) + '/restart'
+      : '/test-environment/restart'
     const r = await fetch('/api/projects/' + encodeURIComponent(projectId) + suffix, {
       method: 'POST',
       headers: api.jsonHeaders()
@@ -91,8 +91,8 @@ export async function registerIssueManagerExtension(ctx) {
 
   async function buildEnv(projectId, envId = '') {
     const suffix = envId
-      ? '/preview-lane/environments/' + encodeURIComponent(envId) + '/build'
-      : '/preview-lane/build'
+      ? '/test-environment/environments/' + encodeURIComponent(envId) + '/build'
+      : '/test-environment/build'
     const r = await fetch('/api/projects/' + encodeURIComponent(projectId) + suffix, {
       method: 'POST',
       headers: api.jsonHeaders()
@@ -102,7 +102,7 @@ export async function registerIssueManagerExtension(ctx) {
   }
 
   async function openFolder(projectId) {
-    const r = await fetch('/api/projects/' + encodeURIComponent(projectId) + '/preview-lane/open-folder', {
+    const r = await fetch('/api/projects/' + encodeURIComponent(projectId) + '/test-environment/open-folder', {
       method: 'POST',
       headers: api.jsonHeaders()
     })
@@ -111,11 +111,11 @@ export async function registerIssueManagerExtension(ctx) {
   }
 
   // ダイアログ内のUI構築と更新
-  async function previewLaneDialog() {
+  async function testEnvironmentDialog() {
     const projectId = state.activeProject
     if (!projectId) return
 
-    const container = el('div', { class: 'preview-lane-container' })
+    const container = el('div', { class: 'test-environment-container' })
     const envPanel = el('div', { class: 'preview-env-panel', style: 'display:none;' })
     const statusPanel = el('div', { class: 'preview-status-panel' })
     const manualPanel = el('div', { class: 'preview-manual-panel' })
@@ -278,7 +278,7 @@ export async function registerIssueManagerExtension(ctx) {
         )
         statusPanel.appendChild(statusRow)
 
-        const previewTargets = Array.isArray(res.previewTargets) ? res.previewTargets.filter(t => t && t.url) : []
+        const checkTargets = Array.isArray(res.checkTargets) ? res.checkTargets.filter(t => t && t.url) : []
         const environmentName = res.environment && (res.environment.name || res.environment.id)
           ? String(res.environment.name || res.environment.id)
           : ''
@@ -313,7 +313,7 @@ export async function registerIssueManagerExtension(ctx) {
         // 3. アクションボタンの作成
         const isConfigured = res.status !== 'not_configured'
         const isRunning = res.status === 'running'
-        const targetLinksEnabled = (isConfigured && isRunning) || (!isConfigured && previewTargets.length > 0)
+        const targetLinksEnabled = (isConfigured && isRunning) || (!isConfigured && checkTargets.length > 0)
 
         const actionsRow = el('div', { class: 'preview-actions-row' },
           // 起動ボタン
@@ -411,11 +411,11 @@ export async function registerIssueManagerExtension(ctx) {
         )
         statusPanel.appendChild(actionsRow)
 
-        if (previewTargets.length > 0) {
+        if (checkTargets.length > 0) {
           const targetsBox = el('div', { class: 'preview-targets-box' })
           targetsBox.appendChild(el('div', { class: 'preview-section-title', text: '確認先' }))
           const targetRow = el('div', { class: 'preview-targets-row' })
-          for (const target of previewTargets) {
+          for (const target of checkTargets) {
             targetRow.appendChild(el('button', {
               type: 'button',
               class: 'hdr-btn link-btn preview-target-btn',
@@ -442,7 +442,7 @@ export async function registerIssueManagerExtension(ctx) {
 
     // モーダル表示
     await modal({
-      title: 'プレビューレーン（確認環境・試験環境）',
+      title: 'テスト確認（確認環境・試験環境）',
       body: container,
       actions: [{ label: '閉じる', value: null }]
     })
@@ -479,8 +479,8 @@ export async function registerIssueManagerExtension(ctx) {
             '- 共有標準環境で足りる場合は、プロジェクト側に不要な Dockerfile / compose を増やさない',
             '- 共有環境を使う場合、プロジェクト側には source: shared と sharedEnvironmentId だけを記録し、共有フォルダの実体パスを書かない',
             '- カスタマイズが必要な場合だけ <project>\\_docker\\environments.json と環境別ファイルを作成する',
-            '- issue_manager 画面から操作できるよう、環境ID、表示名、用途、composeFile、previewTargets、必要なら customActions を設定する',
-            '- previewTargets にはブラウザで開けるホスト側URLを設定し、0.0.0.0 をURLとして使わない',
+            '- issue_manager 画面から操作できるよう、環境ID、表示名、用途、composeFile、checkTargets、必要なら customActions を設定する',
+            '- checkTargets にはブラウザで開けるホスト側URLを設定し、0.0.0.0 をURLとして使わない',
             '- 共有 Traefik を使う場合は Host / port / path を明示し、プロジェクト単位で衝突しない名前にする',
             '- 通常の反映、restart、stop/start、build、customActions の違いが分かるようにする',
             '- customActions は許可済みバッチ/固定コマンドだけを登録し、任意 shell 文字列を画面から直接実行させない',
@@ -489,7 +489,7 @@ export async function registerIssueManagerExtension(ctx) {
             '',
             '## 出力してほしいもの',
             '- 共有標準環境を使うか、プロジェクト固有環境を作るかの判断',
-            '- 画面に出す環境名、状態確認先、主 previewTarget',
+            '- 画面に出す環境名、状態確認先、主 checkTarget',
             '- 作成/変更するファイル一覧',
             '- 起動、停止、restart、build、customActions の使い分け',
           ].join('\n'),
@@ -516,7 +516,7 @@ export async function registerIssueManagerExtension(ctx) {
             '- プロジェクト側には source: shared と sharedEnvironmentId などの論理参照だけを書く',
             '- config.shared.root / config.shared.dockerRoot / config.shared.traefikRoot は issue_manager 側の設定であり、プロジェクトrepoへコピーしない',
             '- 秘密情報、個人ユーザー名、ローカル絶対パス、社内URL、未公開データパスを公開repoへ入れない',
-            '- previewTargets は公開してよい localhost / project-id.localhost / 127.0.0.1 などの開発用URLに限定する',
+            '- checkTargets は公開してよい localhost / project-id.localhost / 127.0.0.1 などの開発用URLに限定する',
             '- compose にホスト固定ポートや container_name を安易に入れず、COMPOSE_PROJECT_NAME / IM_PROJECT_ID / IM_HOST で分離する',
             '- 既存挙動を壊さないよう、プロジェクト固有 compose が必要な場合は理由を明記して残す',
             '',
@@ -532,7 +532,7 @@ export async function registerIssueManagerExtension(ctx) {
             '- 変更するファイル一覧',
             '- 公開repoへ入れてよい内容 / 入れてはいけない内容の確認結果',
             '- 移行後の _docker/environments.json の例',
-            '- 動作確認方法（previewTargets、start/status/restart/build のどれで確認するか）',
+            '- 動作確認方法（checkTargets、start/status/restart/build のどれで確認するか）',
           ].join('\n'),
         },
         {
@@ -566,9 +566,9 @@ export async function registerIssueManagerExtension(ctx) {
                 }
               }
               if (res.error) lines.push(`エラー: ${res.error}`)
-              if (Array.isArray(res.previewTargets) && res.previewTargets.length) {
+              if (Array.isArray(res.checkTargets) && res.checkTargets.length) {
                 lines.push('確認先:')
-                for (const target of res.previewTargets) {
+                for (const target of res.checkTargets) {
                   if (target && target.url) lines.push(`  - ${target.label || target.id || 'preview'}: ${target.url}`)
                 }
               }
@@ -677,7 +677,7 @@ export async function registerIssueManagerExtension(ctx) {
       },
       {
         title: '3. 確認先とカスタム操作',
-        content: `確認URLは環境メタデータの <code>previewTargets</code> から表示します。<code>0.0.0.0</code> はlisten addressであり、ブラウザで開くURLには使いません。<br>
+        content: `確認URLは環境メタデータの <code>checkTargets</code> から表示します。<code>0.0.0.0</code> はlisten addressであり、ブラウザで開くURLには使いません。<br>
                   レポート再生成などプロジェクト固有の補助処理は <code>customActions</code> として登録された固定バッチ/固定コマンドだけを画面から実行します。<br>
                   volume削除、prune、<code>down -v</code> などの危険操作は標準ボタン化せず、必要時にDocker DesktopまたはCLIで手動判断します。`
       },
@@ -710,7 +710,7 @@ export async function registerIssueManagerExtension(ctx) {
   }
 
   return {
-    id: 'preview-lane',
+    id: 'test-environment',
     // 宣言型レーンバインド部品。
     // core (public/app.js) の attachExtensionLaneParts() が renderKanban のたびにこれを走査し、
     // review レーンの lane-action-bar にボタンを再差し込み、updateState で状態を最新化する。
@@ -726,3 +726,4 @@ export async function registerIssueManagerExtension(ctx) {
     ],
   }
 }
+

@@ -1,4 +1,4 @@
-# Docker 保守・クリーンアップ運用ポリシー
+﻿# Docker 保守・クリーンアップ運用ポリシー
 
 作成日: 2026-06-01
 対象: G:\codex\ 配下で Docker 化された全プロジェクト
@@ -197,7 +197,8 @@ docker compose down -v --rmi local
 
 このポリシーを根拠に Docker 確認環境や容量案内を変更する場合は、文書だけで判断せず次の実装も確認する。
 
-- `open/preview-lane/routes.mjs`: Docker 環境メタデータ、compose 解決、AI 向けプロンプト生成
-- `open/preview-lane/assets/preview-lane.js`: テスト確認 UI、危険操作の表示・非表示
+- `open/test-environment/routes.mjs`: Docker 環境メタデータ、compose 解決、AI 向けプロンプト生成
+- `open/test-environment/assets/test-environment.js`: テスト確認 UI、危険操作の表示・非表示
 - `lib/shared-config.mjs`: 共有 Docker / Traefik ルート解決
 - `_share/docker/catalog.json`: 共有 Docker 環境カタログ
+
