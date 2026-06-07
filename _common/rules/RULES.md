@@ -27,6 +27,7 @@ issue_manager 管理下の各プロジェクトで、公開範囲、非公開領
 - Enterprise 拡張の入れ外し: `docs/enterprise_extension_policy.md`
 - Docker 共有 Traefik プロキシ運用: `docs/docker_shared_traefik_policy.md`
 - Docker 保守・クリーンアップ運用: `docs/docker_maintenance_policy.md`
+- プロジェクト移動と絶対パス依存管理: `docs/project_relocation_policy.md`
 
 ## 公開/非公開の原則
 

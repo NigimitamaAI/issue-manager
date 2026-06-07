@@ -766,6 +766,42 @@ body {
   font-size: 11px;
   background: transparent;
 }
+.path-audit {
+  display: grid;
+  gap: 10px;
+  max-height: min(64vh, 620px);
+  overflow: auto;
+}
+.path-audit-summary {
+  font-weight: 700;
+  color: var(--text);
+}
+.path-audit-item {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  background: var(--surface);
+}
+.path-audit-file {
+  display: block;
+  margin-bottom: 6px;
+  word-break: break-all;
+}
+.path-audit-refs {
+  margin: 0;
+  padding: 8px;
+  max-height: 130px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  background: var(--surface-2);
+  border-radius: 4px;
+}
+.path-audit-note {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
 .enterprise-actions {
   display: inline-flex;
   gap: 6px;

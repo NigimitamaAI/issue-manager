@@ -33,6 +33,11 @@
 ## チケット指定再開用
 
 ```text
+## 今回の作業対象
+タイトル: <title>
+チケット: <ticket path>
+レーン: <lane>
+
 <tickets path> の RULES.md を読んだ後、以下のチケットを開いて作業を再開してください。
 
 チケット: <ticket path>

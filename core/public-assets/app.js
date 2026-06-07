@@ -59,6 +59,17 @@ const api = {
     if (!r.ok) throw await r.json()
     return r.json()
   },
+  async pathAudit(name) {
+    const r = await fetch('/api/projects/' + encodeURIComponent(name) + '/path-audit')
+    if (!r.ok) throw await r.json()
+    return r.json()
+  },
+  async savePathAuditReport(name) {
+    return api.jsonRequest('/api/projects/' + encodeURIComponent(name) + '/path-audit/report', {
+      method: 'POST',
+      body: '{}'
+    })
+  },
   async importCandidates() {
     const r = await fetch('/api/projects/import-candidates')
     if (!r.ok) throw await r.json()
@@ -141,10 +152,10 @@ const api = {
       body: '{}'
     })
   },
-  async unregisterProject(name, mode) {
+  async unregisterProject(name, mode, moveContext = {}) {
     return api.jsonRequest('/api/projects/' + encodeURIComponent(name) + '/unregister', {
       method: 'POST',
-      body: JSON.stringify({ mode })
+      body: JSON.stringify({ mode, ...moveContext })
     })
   },
   async openExternal(name, payload) {
@@ -488,6 +499,43 @@ function projectUrlId(p) {
   return p ? (p.shortId || projectInternalId(p)) : ''
 }
 
+function projectBookmarkLabel(p) {
+  if (!p) return 'Issue Manager'
+  const name = p.projectName || p.displayName || p.name || projectInternalId(p)
+  const shortId = p.shortId || ''
+  return shortId ? name + ' (' + shortId + ')' : name
+}
+
+function setMetaContent(selector, attrs, content) {
+  let node = document.head.querySelector(selector)
+  if (!node) {
+    node = document.createElement('meta')
+    for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value)
+    document.head.appendChild(node)
+  }
+  node.setAttribute('content', content)
+}
+
+function activeTicketTitle() {
+  const t = state.activeTicket
+  if (!t || !state.tickets) return ''
+  const items = state.tickets[t.lane] || []
+  const found = items.find(item => item.file === t.file)
+  return found ? (found.title || t.file) : t.file
+}
+
+function updateDocumentMetadata() {
+  const project = findProjectByInternalId(state.activeProject)
+  const projectLabel = projectBookmarkLabel(project)
+  const ticketTitle = activeTicketTitle()
+  const title = state.activeProject
+    ? (ticketTitle ? ticketTitle + ' - ' + projectLabel + ' - Issue Manager' : projectLabel + ' - Issue Manager')
+    : 'Issue Manager'
+  document.title = title
+  setMetaContent('meta[name="description"]', { name: 'description' }, title)
+  setMetaContent('meta[property="og:title"]', { property: 'og:title' }, title)
+}
+
 function findProjectByInternalId(id) {
   return state.projects.find(p => projectInternalId(p) === id) || null
 }
@@ -525,6 +573,7 @@ async function selectProject(name, opts = {}) {
   const proj = findProjectByInternalId(name)
   const title = proj.projectName || name
   $('#kanban-title').textContent = title + (proj.layout === 'legacy' ? '（旧構造）' : '')
+  updateDocumentMetadata()
   $('#btn-open-index').disabled = false
   $('#btn-open-rules').disabled = false
   $('#btn-new-ticket').disabled = false
@@ -734,6 +783,7 @@ async function selectTicket(lane, file, opts = {}) {
     state.activeTicket = { lane, file, content: data.content, mtime: data.mtime, path: data.path, archivedFrom }
     renderKanban()
     renderDetail()
+    updateDocumentMetadata()
     if (opts.updateUrl !== false) updateTicketUrl(opts.section || null)
     if (opts.section) setTimeout(() => scrollToDetailSection(opts.section), 0)
   } catch (e) {
@@ -1092,7 +1142,7 @@ async function newProjectDialog() {
           title: 'クリックで選択、ダブルクリックで開く',
           onclick: () => updateSelected(item.path),
           ondblclick: () => loadFolder(item.path),
-        }, el('span', { text: item.name }), el('span', { class: 'folder-badge', text: item.managed ? '管理中' : (item.hasTickets ? 'ticketsあり' : 'ダブルクリックで開く') })))
+        }, el('span', { text: item.name }), el('span', { class: 'folder-badge', text: item.managed ? '管理中' : (item.unregistered ? '登録解除済み' : (item.hasTickets ? 'ticketsあり' : 'ダブルクリックで開く')) })))
       }
       updateSelected(browserState.selected)
     } catch (e) {
@@ -1125,7 +1175,7 @@ async function newProjectDialog() {
         return
       }
       res = await api.importProject(browserState.rootId, browserState.selected)
-      toast('既存フォルダを導入しました: ' + (browserState.selected || selectedRoot().label), 'ok')
+      toast(res.restored ? '登録解除済みプロジェクトを再登録しました' : '既存フォルダを導入しました: ' + (browserState.selected || selectedRoot().label), 'ok')
     } else {
       const name = form.querySelector('#new-proj-name').value.trim()
       if (!name) return
@@ -1174,6 +1224,25 @@ async function showProjectInfo(projectId) {
       rows.push(['manifestエラー', p.appManifest.errors.join('; ')])
     }
   }
+  if (p.moveHistory) {
+    rows.push(
+      ['移動履歴', p.moveHistory.ok ? p.moveHistory.count + '件' : '読込エラー'],
+      ['移動履歴ファイル', p.moveHistory.path || '']
+    )
+    if (p.moveHistory.latest) {
+      const latest = p.moveHistory.latest
+      const from = latest.from || {}
+      const to = latest.to || {}
+      const moveContext = latest.moveContext || {}
+      rows.push(
+        ['最新履歴', (latest.type || '-') + ' / ' + (latest.recordedAt || '-')],
+        ['移動元', from.projectDir || ''],
+        ['移動先', to.projectDir || moveContext.nextPathHint || '']
+      )
+    } else if (p.moveHistory.error) {
+      rows.push(['移動履歴エラー', p.moveHistory.error])
+    }
+  }
   if (p.commonRules && p.commonRules.exists) {
     rows.push(
       ['共通ルール', p.commonRules.rulesPath || ''],
@@ -1186,11 +1255,83 @@ async function showProjectInfo(projectId) {
       el('code', { class: 'project-info-val', text: String(v || '-') })
     ))
   )
-  await modal({
+  const choice = await modal({
     title: 'プロジェクト情報',
     body,
-    actions: [{ label: '閉じる', value: null }],
+    actions: [
+      { label: '絶対パス棚卸し', value: 'path-audit', class: 'primary' },
+      { label: '閉じる', value: null },
+    ],
   })
+  if (choice === 'path-audit') await showProjectPathAudit(projectId)
+}
+
+function pathAuditSummaryText(refs) {
+  const values = (refs || []).slice(0, 3).map(r => r.value)
+  const suffix = refs && refs.length > 3 ? ' ...' : ''
+  return values.join('\n') + suffix
+}
+
+async function showProjectPathAudit(projectId) {
+  let result
+  try {
+    result = await api.pathAudit(projectId)
+  } catch (e) {
+    toast('絶対パス棚卸し失敗: ' + (e.error || e.message), 'err')
+    return
+  }
+  const matches = result.matches || []
+  const body = el('div', { class: 'path-audit' },
+    el('div', { class: 'path-audit-summary', text: matches.length ? matches.length + ' ファイルに絶対パス候補があります' : '絶対パス候補は見つかりませんでした' }),
+    ...matches.map(item => el('div', { class: 'path-audit-item' },
+      el('code', { class: 'path-audit-file', text: item.file }),
+      el('pre', { class: 'path-audit-refs', text: pathAuditSummaryText(item.refs || []) }),
+      item.truncated ? el('div', { class: 'path-audit-note', text: 'このファイルは候補が多いため一部だけ表示しています' }) : null
+    ))
+  )
+  await modal({
+    title: '絶対パス棚卸し',
+    body,
+    actions: [
+      { label: 'レポート保存', value: 'save', class: 'primary' },
+      { label: 'プロジェクト情報へ戻る', value: 'back', class: 'primary' },
+      { label: '閉じる', value: null },
+    ],
+  }).then(choice => {
+    if (choice === 'save') return saveProjectPathAuditReport(projectId)
+    if (choice === 'back') return showProjectInfo(projectId)
+    return null
+  })
+}
+
+async function saveProjectPathAuditReport(projectId) {
+  let saved
+  try {
+    saved = await api.savePathAuditReport(projectId)
+  } catch (e) {
+    toast('棚卸しレポート保存失敗: ' + (e.error || e.message), 'err')
+    return
+  }
+  toast('棚卸しレポートを保存しました', 'ok')
+  const body = el('div', { class: 'project-info' },
+    el('div', { class: 'project-info-row' },
+      el('div', { class: 'project-info-key', text: 'Markdown' }),
+      el('code', { class: 'project-info-val', text: saved.mdPath || saved.mdRel || '' })
+    ),
+    el('div', { class: 'project-info-row' },
+      el('div', { class: 'project-info-key', text: 'JSON' }),
+      el('code', { class: 'project-info-val', text: saved.jsonPath || saved.jsonRel || '' })
+    )
+  )
+  const choice = await modal({
+    title: '棚卸しレポート保存',
+    body,
+    actions: [
+      { label: '棚卸しへ戻る', value: 'audit', class: 'primary' },
+      { label: '閉じる', value: null },
+    ],
+  })
+  if (choice === 'audit') await showProjectPathAudit(projectId)
 }
 
 async function unregisterProjectDialog() {
@@ -1207,6 +1348,20 @@ async function unregisterProjectDialog() {
       el('div', { class: 'project-info-key', text: 'tickets' }),
       el('code', { class: 'project-info-val', text: p.ticketsDir || '' })
     ),
+    el('label', { text: '理由 / メモ' }),
+    el('input', {
+      id: 'unregister-reason',
+      type: 'text',
+      value: 'Relocate project',
+      placeholder: '例: G:\\dev へ移動'
+    }),
+    el('label', { text: '移動先候補' }),
+    el('input', {
+      id: 'unregister-next-path',
+      type: 'text',
+      value: '',
+      placeholder: '例: G:\\dev\\project-name'
+    }),
     el('p', { class: 'folder-help', text: '「チケットを残して解除」は tickets/ をそのまま残し、.issuemgr/unregistered.json で検出対象から外します。' }),
     el('p', { class: 'folder-help', text: '「圧縮コピーして解除」は tickets/ の tar.gz コピーも .issuemgr/unregistered/ に作ります。元の tickets/ は削除しません。' })
   )
@@ -1221,10 +1376,14 @@ async function unregisterProjectDialog() {
   })
   if (!mode) return
   try {
-    const res = await api.unregisterProject(state.activeProject, mode)
+    const res = await api.unregisterProject(state.activeProject, mode, {
+      reason: body.querySelector('#unregister-reason').value.trim(),
+      nextPathHint: body.querySelector('#unregister-next-path').value.trim(),
+    })
     toast(mode === 'pack' ? '圧縮コピーして登録解除しました' : '登録解除しました', 'ok')
     state.activeProject = null
     state.activeTicket = null
+    updateDocumentMetadata()
     await loadProjects()
     renderDetail()
     $('#kanban-title').textContent = 'プロジェクトを選択してください'
@@ -2054,6 +2213,11 @@ async function copyResumePromptForActiveTicket() {
   const extensionRules = await buildExtensionRulesSection()
   const assistantPrompts = buildAssistantPromptsSection(t)
   const prompt = [
+    '## 今回の作業対象',
+    'タイトル: ' + (t.title || ''),
+    'チケット: ' + ticketPath,
+    'レーン: ' + (t.lane || ''),
+    '',
     commonRules,
     extensionRules,
     assistantPrompts,
